@@ -1,0 +1,5 @@
+- insert:
+    - id: aml-workbench-main
+      name: "@xyb-community/aml-workbench"
+      config:
+        root: !!js dshHomePath('aml-workbench')

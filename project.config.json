@@ -1,0 +1,18 @@
+{
+  "packageName": "@xyb-community/aml-workbench",
+  "title": "急性髓系白血病患者工作台",
+  "repository": "https://github.com/xyb-openharness-dsh-plugins/aml-workbench",
+  "description": "面向急性髓系白血病患者与照护者的本机病程资料、诱导化疗日历、粒缺发热轨道、MRD 趋势、移植评估、输注记录工作台设计项目",
+  "slug": "aml-workbench",
+  "layoutMode": "business-first",
+  "businessWidth": 0.65,
+  "targetUsers": "急性髓系白血病患者与照护者双主体；覆盖急症入院、诱导化疗（7+3）、粒缺发热、MRD 监测、移植评估、输血依赖与感染全程；支持家属代记与私密内容分级",
+  "scenario": "患者与照护者整理化疗周期日历、血象与骨髓、粒缺发热记录（体温曲线/抗生素时点）、MRD 流式与 PCR、输注记录、移植评估与供者类型、黏膜炎与症状，准备复诊问题并回顾医生确认后的记录",
+  "coreFlow": [
+    "选择本地资料目录并登记化疗周期、血象、体温曲线、MRD、输注与移植评估材料",
+    "核对化疗日历与骨抑制谷值、粒缺发热时间轴、MRD 趋势（流式/PCR 并列）",
+    "查看时间轴与趋势，标记症状与待办，生成复诊摘要与问题清单",
+    "照护者以代记身份记录体温与症状，私密内容分级管理，并把明确任务交给 Desktop 原生 Agent 会话"
+  ],
+  "completion": "患者与照护者确认的资料和化疗时间轴、可追溯的 MRD 趋势、粒缺发热与输注记录、复诊摘要均保存在明确选择的本机资料目录中；私密内容按 visibility 分级且三处出口过滤"
+}
