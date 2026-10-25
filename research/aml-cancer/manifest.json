@@ -1,0 +1,49 @@
+{
+  "topic": "aml",
+  "year": "2026",
+  "snapshotDate": "2026-10-26",
+  "tool": "unified-trial-mcp @ /Users/qinxiaoqiang/Downloads/unified_search_trials/dist/src/cli/main.js",
+  "queries": [
+    {
+      "keyword": "急性髓系白血病",
+      "note": "中文标准名"
+    },
+    {
+      "keyword": "急性粒细胞白血病",
+      "note": "中文别名"
+    },
+    {
+      "keyword": "急非淋",
+      "note": "中文俗称"
+    },
+    {
+      "keyword": "acute myeloid leukemia",
+      "note": "英文标准名"
+    },
+    {
+      "keyword": "AML",
+      "note": "英文缩写"
+    },
+    {
+      "keyword": "acute myelogenous leukemia",
+      "note": "英文别名"
+    }
+  ],
+  "perSourceLimit": 200,
+  "recordCount": 241,
+  "dbCount": 241,
+  "sourceStatusRows": 36,
+  "honesty": {
+    "offlineCorpora": "ChiCTR/CDE/CTV 离线语料仅胰腺癌覆盖；AML 只依赖在线通道终态，见 source_statuses 表",
+    "statusWording": "登记 ≠ 有效 ≠ 安全 ≠ 可入组；状态一律\"登记状态，未核实\"",
+    "mergeRule": "仅同一登记号（NCT/ChiCTR/CDE 等）合并，其余并排保留来源"
+  },
+  "files": {
+    "trials-2026.jsonl": {
+      "sha256": "ea542e29ea2566faed6b5def4503d9763076a4aa21dca2c76dc30d4dd2d50eda"
+    },
+    "aml_cancer_trials_2026.sqlite": {
+      "sha256": "c73c02587680f493bbe6a62f79c3679e92d669abbec00def24a68f43a6d3ab33"
+    }
+  }
+}
