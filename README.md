@@ -69,36 +69,36 @@
 
 **看板**——"现在到疗程第几天？今天注意什么？"：D+N 状态卡、粒缺期模式卡（ANC<0.5 自动出现）、最近血象、双主体入口与场景直达。
 
-![看板](docs/screenshots/readme-dashboard-0.4.0.png)
+![看板](docs/screenshots/readme-dashboard-0.4.1.png)
 
 **诱导日历（按天）**（AML 首创 dayGrid）——"7+3 到底怎么打的？为什么第 8 天反而最危险？"：D1–D42 每天一格，化疗打勾、谷值期带、骨穿窗口、当日体温/输注摘要；无记录显示灰格（允许"仅知月份"）。
 
-![诱导日历按天](docs/screenshots/readme-daygrid-0.4.0.png)
+![诱导日历按天](docs/screenshots/readme-daygrid-0.4.1.png)
 
 **粒缺发热轨道**（AML 首创 hourLane）——"半夜烧到 38.5 该怎么办？"：体温精确到小时、38.3/38.0 定义口径参考线、血培养双套与抗生素时点节点；定义原文常驻、急症提示不可忽略；照护者代记自动标注记录人（双源）。
 
-![粒缺发热轨道](docs/screenshots/readme-hourlane-0.4.0.png)
+![粒缺发热轨道](docs/screenshots/readme-hourlane-0.4.1.png)
 
 **Day+N 相对天数轴**——移植病友的通用语言：Day 0 回输锚点（未定时灰格占位、不造数）、植入 Day+14、Day+100 GVHD 观察节点。
 
-![Day+N 时间轴](docs/screenshots/readme-dayaxis-0.4.0.png)
+![Day+N 时间轴](docs/screenshots/readme-dayaxis-0.4.1.png)
 
 **病情一图秀**——"变化发生在哪一步？"：ANC/PLT + 体重 + 同方法 MRD 放回同一段时间；疗程/粒缺发作/输注是分类节点只画节点不连线；月粒度轴不装小时（不跨尺度共轴）。
 
-![一图秀](docs/screenshots/readme-onechart-0.4.0.png)
+![一图秀](docs/screenshots/readme-onechart-0.4.1.png)
 
 **治疗路径折叠卡**——默认只显「阶段 · 日期 · 一句话概要」，点开五块细节（方案/指标/影像/副作用/支持）；打印时全部展开（beforeprint 实测，printToPDF 打印中 5 卡全开、打印后恢复）。
 
-![治疗路径折叠](docs/screenshots/readme-pathway-folded-0.4.0.png)
-![治疗路径展开](docs/screenshots/readme-pathway-expanded-0.4.0.png)
+![治疗路径折叠](docs/screenshots/readme-pathway-folded-0.4.1.png)
+![治疗路径展开](docs/screenshots/readme-pathway-expanded-0.4.1.png)
 
 **私密三出口**（红线页）——"对死亡的准备"默认私密：默认不进导出、不进看板摘要、不进 AI 上下文（同一个 sharedOnly 过滤函数贯穿三出口）。
 
-![私密三出口](docs/screenshots/readme-private-filter-0.4.0.png)
+![私密三出口](docs/screenshots/readme-private-filter-0.4.1.png)
 
 **疾病概要整页**（36 号）——顶栏「?」打开四段整页（定义 / 医学资料与指南情况 / 治疗全景 / 发展趋势），逐段带来源与原件取得情况；与上面「## 疾病概要」同源，不是弹窗。
 
-![疾病概要](docs/screenshots/readme-primer-0.4.0.png)
+![疾病概要](docs/screenshots/readme-primer-0.4.1.png)
 
 ## 怎么用
 
