@@ -54,3 +54,8 @@ M5 七步移植（V1 通过：check 全绿 + 83/83 测试 + audit 43/43 独立�
 - public/ 与原型逐字符一致（数据层写进原型 app.js，构建期不再打补丁，避免两份渲染代码分叉）。
 - 测试 8 套 83 用例：store / demo-parity / server / client / import-export / schema-freeze / mineru-wiring / pack-contents。
 - 自修 4 个真缺陷：correctRecord 占位符多一个 ?；Hb→HB 大写化致趋势分叉；未归属发热期的体温读不出（改单列一组）；apiBase 双前缀致 404 静默退回演示数据。
+
+## 0.3.1 — 2026-10-26
+
+- 接手脚手架的 `check-render-after-write` 断言器后在**本仓抓到 3 个真缺陷**：`mem().txf`（输注）、`mem().oral`（黏膜炎）写入后无处渲染——用户记了却看不到。已修（输注/黏膜炎页并入本次登记并排序、累计值同源）。
+- 新增两个检查器进 check 链：`check-dialog-handoff`（onSave 再开弹窗必须 return true 接管；不可忽略框必须有 cancel/遮罩拦截）、`check-render-after-write`（每个 mem() 写入点都要有读取/渲染）。断言器支持聚合访问器（deathsAll/feelsAll/allTx）避免误报。

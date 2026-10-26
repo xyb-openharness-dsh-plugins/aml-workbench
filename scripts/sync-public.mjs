@@ -4,7 +4,9 @@
  * 36 号：primer-data.js / primer.js / primer.css 必须一起同步——
  * 只同步业务四件套会让装机版「?」点开是空白，而原型里一切正常。
  *
- * M5 起（AML 0.3.0）：**public/ 与原型逐字符一致，同步脚本不做任何改写**。
+ * M5 起（AML 0.3.0）：**public/ 与原型逐字符一致，唯一例外是版本字面量**——
+ * 原型 index.html 的 4 处 `v0.3.0` 与 app.js 的 APP_INFO.version 由本脚本按 VERSION
+ * 注入（06 号：版本三处同源；避免每次升版都要手改原型）。除此之外不做任何改写。
  * 数据层（先向 /api/aml/bootstrap 要真数据、拿不到才回退 DEMO_DATA）已经写在
  * prototypes/v0.2/app.js 里——因为它同时也是双击 index.html 时的实现。
  * 构建期再打一遍补丁会让两份渲染代码分叉，parity 就没人守得住了。
@@ -13,7 +15,7 @@
  *   node scripts/sync-public.mjs            写入
  *   node scripts/sync-public.mjs --check    只校验，不同步退出码 1
  */
-import { copyFileSync, existsSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,6 +23,17 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'prototypes', 'v0.2');
 const DST = join(ROOT, 'public');
 const checkOnly = process.argv.includes('--check');
+
+const VERSION = readFileSync(join(ROOT, 'VERSION'), 'utf8').trim();
+
+/* 版本注入（唯一例外）：原型里的版本字面量统一改成 VERSION 值。
+   原型 index.html 用 v<semver>、app.js 用 version: '<semver>'。 */
+const semverRe = /\d+\.\d+\.\d+/;
+function injectVersion(text) {
+  return text
+    .replace(/(v)\d+\.\d+\.\d+/g, `$1${VERSION}`)
+    .replace(/(version:\s*')[0-9.]+(')/g, `$1${VERSION}$2`);
+}
 
 const REQUIRED = ['index.html', 'style.css', 'app.js', 'demo-data.js'];
 const PRIMER = ['primer-data.js', 'primer.js', 'primer.css'];
@@ -37,14 +50,16 @@ for (const f of ALL) {
     failed = true;
     continue;
   }
+  const expect = /^(index\.html|app\.js)$/.test(f) ? injectVersion(readFileSync(src, 'utf8')) : readFileSync(src, 'utf8');
   if (checkOnly) {
     const dst = join(DST, f);
     if (!existsSync(dst)) stale.push(`缺 public/${f}`);
-    else if (readFileSync(dst, 'utf8') !== readFileSync(src, 'utf8')) stale.push(`public/${f} 与原型不同步`);
+    else if (readFileSync(dst, 'utf8') !== expect) stale.push(`public/${f} 与原型不同步（含版本注入）`);
     continue;
   }
-  copyFileSync(src, join(DST, f));
-  console.log(`synced ${f}`);
+  if (expect === readFileSync(src, 'utf8')) copyFileSync(src, join(DST, f));
+  else writeFileSync(join(DST, f), expect, 'utf8');
+  console.log(`synced ${f}${expect === readFileSync(src, 'utf8') ? '' : `（版本注入 v${VERSION}）`}`);
 }
 
 if (failed) {

@@ -718,9 +718,12 @@ function pageNeuCbc() {
 }
 function pageNeuTx() {
   const p = profile();
-  const rows = (p.neu.transfusions || []).map((t) => `<tr><td class="num">${esc(longDate(t.d))}</td><td>${pill(t.comp, t.comp === '红细胞' ? 'red' : 'amber')}</td><td class="num">${esc(t.units)}</td><td class="num">${esc(t.pre)}</td><td>${esc(t.reaction)}</td><td>${esc(t.attr)}</td></tr>`).join('');
-  const rbc = (p.neu.transfusions || []).filter((t) => t.comp === '红细胞').reduce((s, t) => s + (parseInt(t.units) || 0), 0);
-  const pltN = (p.neu.transfusions || []).filter((t) => t.comp === '血小板').length;
+  /* 本次登记（mem().txf）必须能看见——写入后无处渲染等于用户白记一条 */
+  const live = (mem().txf || []).map((t) => ({ d: t.d, comp: t.comp === 'RBC' ? '红细胞' : t.comp === 'PLATELET' ? '血小板' : '血浆', units: t.units, pre: t.pre || '未登记', reaction: t.reaction || '未登记', attr: t.attr || '—' }));
+  const allTx = [...(p.neu.transfusions || []), ...live].sort((a, b) => Date.parse(b.d) - Date.parse(a.d));
+  const rows = allTx.map((t) => `<tr><td class="num">${esc(longDate(t.d))}</td><td>${pill(t.comp, t.comp === '红细胞' ? 'red' : 'amber')}</td><td class="num">${esc(t.units)}</td><td class="num">${esc(t.pre)}</td><td>${esc(t.reaction)}</td><td>${esc(t.attr)}</td></tr>`).join('');
+  const rbc = allTx.filter((t) => t.comp === '红细胞').reduce((s, t) => s + (parseInt(t.units) || 0), 0);
+  const pltN = allTx.filter((t) => t.comp === '血小板').length;
   return `${head('输注记录与反应', '又输血了是不是很严重——这里按成分分列：日期 / 量 / 输注前血象 / 反应 / 辐照去白；累计只做红细胞单位汇总，不判依赖（K5）。', aiBtn('neu'), '输注记录与反应')}
   <div class="grid grid-3" style="margin-bottom:12px">
     <div class="card"><span class="eyebrow">累计红细胞</span><div class="big" style="color:var(--red)">${rbc} u</div><p class="small-note">铁过载评估的直接输入（是否祛铁由医生决定；血清铁蛋白记录见指标）。</p></div>
@@ -734,7 +737,8 @@ function pageNeuTx() {
 }
 function pageNeuOral() {
   const p = profile();
-  const rows = (p.neu.oral || []).map((o) => `<div class="card" style="margin-bottom:10px"><div class="card-head"><div><h3 style="font-size:15px">${esc(longDate(o.d))} · ${esc(o.grade)}</h3><p>进食能力：${esc(o.eat)}</p></div>${pill('WHO 分级 · 抄录', 'blue')}</div><p style="font-size:13.5px;margin:4px 0 0">${esc(o.measure)}</p></div>`).join('');
+  const liveOral = (mem().oral || []).map((o) => ({ d: o.d || TODAY, grade: o.grade || '未填分级', eat: o.eat || '未填', measure: o.measure || o.note || '（本次记录）' }));
+  const rows = [...(p.neu.oral || []), ...liveOral].map((o) => `<div class="card" style="margin-bottom:10px"><div class="card-head"><div><h3 style="font-size:15px">${esc(longDate(o.d))} · ${esc(o.grade)}</h3><p>进食能力：${esc(o.eat)}</p></div>${pill('WHO 分级 · 抄录', 'blue')}</div><p style="font-size:13.5px;margin:4px 0 0">${esc(o.measure)}</p></div>`).join('');
   return `${head('黏膜炎与症状', '口腔溃疡疼得吃不下——按 WHO 0–IV 分级呈现强度与进食能力（比疼痛评分对家属更直观）；不画曲线、不荐护理方案（S07）。', aiBtn('care'), '黏膜炎与症状')}
   ${rows || '<div class="empty"><h3>暂无黏膜炎记录</h3><p>化疗后 7–14 天高发（与谷值期重叠）。</p></div>'}
   <div class="notice plain" style="margin-top:10px">${esc(p.neu.oralNote || '')}</div>
