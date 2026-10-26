@@ -12,7 +12,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { close, migrate, openDatabase, appendTemperature } from './store.js'
+import { appendSavedTrial, appendTemperature, close, insertRecord, listRecords, listSavedTrials, migrate, openDatabase, readTrialSnapshot, RECORD_KINDS } from './store.js'
 import { hasDemoData, seedDemo } from './demo.js'
 import { bootstrap, getProfile, listProfiles } from './readmodels.js'
 import { renderPrepMarkdown, exportFilename } from './export.js'
@@ -22,6 +22,13 @@ import { version, build, displayVersion } from '../lib/version.js'
 export const DB_FILE = 'amlpal.sqlite'
 /** 演示数据 JSON（由 demo/build-demo-data.mjs 从 prototypes/v0.2/demo-data.js 落成）。 */
 const DEMO_JSON = new URL('../demo/demo-data.json', import.meta.url)
+
+/** AI 写入能力契约面（与 routes.js CAPABILITIES 同源语义；bootstrap 一并下发）。 */
+const WORKBENCH_CAPABILITIES = [
+  'bootstrap', 'profile', 'temperature', 'export', 'import', 'candidate', 'parse', 'mineru-settings',
+  'trials.read', 'saved-trials.write', 'records.write', 'records.read',
+  ...Object.keys(RECORD_KINDS).map((k) => `records.${k}`),
+]
 
 /** 校验资料目录：返回问题数组（空数组＝可用）。不抛错，方便 UI 一次列出所有问题。 */
 export function validateWorkspacePath(p) {
@@ -65,7 +72,9 @@ export class Workbench {
   get workspace() { return this.#workspace }
   get db() { return this.#db }
 
-  bootstrap() { return bootstrap(this.#db, { version, build }) }
+  bootstrap() {
+    return { ...bootstrap(this.#db, { version, build }), capabilities: [...WORKBENCH_CAPABILITIES] }
+  }
   listProfiles() { return listProfiles(this.#db) }
   /** @param {boolean} [includePrivate=false] private 看法默认不返回（三出口口径） */
   getProfile(key, { includePrivate = false } = {}) { return getProfile(this.#db, key, { includePrivate }) }
@@ -85,6 +94,21 @@ export class Workbench {
       .sort((a, b) => String(a.ts).localeCompare(String(b.ts)))
     return { profile: key, readings: list }
   }
+
+  /** 登记快照检索（35 号）：只读，缺文件返回 source:'missing' 空列表（不抛错不编数据）。 */
+  listTrials(params = {}) { return readTrialSnapshot(params) }
+
+  /** 收藏一条试验（saved_trial）。 */
+  addSavedTrial(input) { return appendSavedTrial(this.#db, input) }
+  listSavedTrials(key) { return listSavedTrials(this.#db, key) }
+
+  /**
+   * 通用事实写入（0.4.0）：kind 白名单见 store.RECORD_KINDS（列名与 schema/0001 逐列一致）。
+   * 手工表单与原生 Agent/会话走同一条路径；AI 产出一律先落候选，确认后才到这里写事实层。
+   */
+  addRecord(kind, input) { return insertRecord(this.#db, kind, input) }
+  /** 通用记录列表：private 默认过滤（三出口口径），includePrivate=true 才返回。 */
+  listRecords(kind, key, opts = {}) { return { kind, profile: key, items: listRecords(this.#db, kind, key, opts) } }
 
   /**
    * 把就诊准备写到 <资料目录>/exports/。private 看法一律剔除（导出是会被带出门诊的东西）。

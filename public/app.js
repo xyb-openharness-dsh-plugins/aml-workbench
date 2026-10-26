@@ -1,5 +1,5 @@
 'use strict';
-/* 小橙宝 OrangePal v0.3.2 — 急性髓系白血病（AML）工作台交互原型。
+/* 小橙宝 OrangePal v0.4.0 — 急性髓系白血病（AML）工作台交互原型。
    所有数据来自 demo-data.js（demo/build-demo-data.mjs 唯一源，合成演示数据）；不读写真实文件、不调用模型或宿主 API。
    页面树唯一权威：research-notes/family-landscape.md §6.2/§6.3（10 一级 / 27 二级）。
    红线（DEV-REQUIREMENTS K1–K6）：
@@ -14,7 +14,7 @@
    三种时间粒度互不混轴（16 号合同补充断言）：月粒度=一图秀 / 天粒度=dayGrid / 小时粒度=hourLane。 */
 
 const APP_INFO = {
-  version: '0.3.2',
+  version: '0.4.0',
   build: '2026-10-26',
   channel: 'prototype',
   channelLabel: '交互原型 · 未接入 DSH / AI',
@@ -48,16 +48,17 @@ const icons = {
   chart: 'M4 20V5m0 15h16M8 16l3-5 3 3 4-7',
   care: 'M5 3h10l4 4v14H5ZM9 12h6M12 9v6',
   mind: 'M9 21v-3H7a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3 5 5 0 0 1 10 0 3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-2v3M9 13h.01M15 13h.01',
-  docs: 'M4 5h16v16H4ZM8 3v4m8-4v4M4 10h16M9 15l2 2 4-4'
+  docs: 'M4 5h16v16H4ZM8 3v4m8-4v4M4 10h16M9 15l2 2 4-4',
+  trial: 'M9 3h6M10 3v5.2L4.9 17a2.6 2.6 0 0 0 2.3 4h9.6a2.6 2.6 0 0 0 2.3-4L14 8.2V3M7.5 14h9'
 };
 const icon = (k) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${icons[k]}"/></svg>`;
 
-/* 页面树（§6.2/§6.3：10 一级 / 27 二级） */
+/* 页面树（§6.2/§6.3 基础上，0.4.0 真机走查：临床研究升一级，docs-trial 二级下线） */
 const PAGES = [
   ['dash', '看板', 'home'], ['dx', '诊断与基因', 'dx'], ['tx', '诱导与疗程', 'tx'],
   ['neu', '粒缺血象与支持', 'neu'], ['mrd', 'MRD 与随访', 'mrd'], ['tp', '移植', 'tp'],
   ['chart', '病情一图秀', 'chart'], ['care', '营养与生活', 'care'], ['mind', '心理与家庭', 'mind'],
-  ['docs', '资料与复诊', 'docs']
+  ['trial', '临床研究', 'trial'], ['docs', '资料与复诊', 'docs']
 ];
 const SUBPAGES = {
   dx: [['dx-wk', '确诊经过与四大检查'], ['dx-gene', '亚型、分层与基因解释卡'], ['dx-mdt', '会诊与二次意见']],
@@ -67,7 +68,8 @@ const SUBPAGES = {
   tp: [['tp-eval', '移植评估档案'], ['tp-donor', '供者与配型记录'], ['tp-day', 'Day+N 时间轴与 GVHD']],
   care: [['care-intake', '食量与体重'], ['care-safe', '食物安全与出入量']],
   mind: [['mind-feel', '当下感受（双主体）'], ['mind-death', '对死亡的准备（私密）'], ['mind-burden', '家庭负担与照护者']],
-  docs: [['docs-lib', '资料库与导入'], ['docs-cand', '整理草稿与核对'], ['docs-prep', '就诊准备与导出'], ['docs-trial', '试验线索']]
+  trial: [['trial-facts', '建档'], ['trial-search', '检索'], ['trial-match', '匹配结果']],
+  docs: [['docs-lib', '资料库与导入'], ['docs-cand', '整理草稿与核对'], ['docs-prep', '就诊准备与导出']]
 };
 const SUBTITLES = {
   dash: '把"现在到第几天、今天注意什么"放在最前面；粒缺期模式卡随 ANC 自动出现。',
@@ -79,7 +81,8 @@ const SUBTITLES = {
   chart: '血象/体重/同方法 MRD 放回同一段时间；疗程、粒缺发作、输注是分类节点，只画节点不连线。',
   care: '食量、体重与出入量只记事实；食物安全是事实提醒非命令式，不给食谱。',
   mind: '双主体各自记录、并列不平均；"对死亡的准备"默认私密三出口；不承诺、不判读。',
-  docs: '资料库、候选核对、两区导出（private 默认过滤）与试验线索（线索不是推荐）分开放。'
+  trial: '临床试验三步：建档 → 检索 → 匹配结果；产出的是带证据链的检索线索，线索不是推荐，判定归医生与研究中心。',
+  docs: '资料库、候选核对与两区导出（private 默认过滤）分开放；临床研究已单独升一级。'
 };
 
 /* 13 场景直达（INTERACTION-DESIGN v1：S01–S13；HVT X1/X2 走查锚点） */
@@ -89,13 +92,13 @@ const SCENES = [
   ['S03', 'MRD 转阴', 'mrd', 'mrd-trend', [['to-mrd-bm', 'mrd', 'mrd-bm'], ['to-chart', 'chart', '']], '双口径趋势'],
   ['S04', '移植供者', 'tp', 'tp-eval', [['to-tp-donor', 'tp', 'tp-donor'], ['to-tp-day', 'tp', 'tp-day']], '评估档案'],
   ['S05', '又输血', 'neu', 'neu-tx', [['to-neu-cbc', 'neu', 'neu-cbc'], ['to-neu-inf', 'neu', 'neu-inf']], '输注记录'],
-  ['S06', '复诊准备', 'docs', 'docs-prep', [['to-docs-lib', 'docs', 'docs-lib']], '两区导出'],
+  ['S06', '复诊准备', 'docs', 'docs-prep', [['to-trial-search', 'trial', 'trial-search']], '两区导出'],
   ['S07', '口腔溃疡', 'neu', 'neu-oral', [['to-care-safe', 'care', 'care-safe']], '黏膜炎记录'],
   ['S08', '家属代记', 'neu', 'neu-fever', [['to-mind-burden', 'mind', 'mind-burden']], '双源代记'],
   ['S09', '影像并列', 'mrd', 'mrd-rhythm', [['to-chart', 'chart', '']], '复查节奏'],
   ['S10', '营养体重', 'care', 'care-intake', [['to-care-safe', 'care', 'care-safe']], '食量与体重'],
   ['S11', '私密心理', 'mind', 'mind-death', [['to-mind-feel', 'mind', 'mind-feel'], ['to-docs-prep', 'docs', 'docs-prep']], '三出口'],
-  ['S12', '试验线索', 'docs', 'docs-trial', [['to-docs-cand', 'docs', 'docs-cand']], '线索非推荐'],
+  ['S12', '临床研究', 'trial', 'trial-search', [['to-trial-facts', 'trial', 'trial-facts'], ['to-trial-match', 'trial', 'trial-match']], '线索非推荐'],
   ['S13', '文档导入', 'docs', 'docs-lib', [['to-docs-cand', 'docs', 'docs-cand']], '候选核对']
 ];
 
@@ -121,6 +124,7 @@ const AI_DEMOS = {
   chart: { prompt: '把 ANC 和体重这半年的变化讲一段给我听，按时间顺序。', cand: { title: '时段摘要候选（演示候选）', fields: [['时段', '2026-05 → 2026-10'], ['ANC', '谷值 0.1（05-24）→ 2.8（10-16）'], ['口径', '每条线按自身范围缩放，不可比']], src: '病情一图秀（演示）' } },
   care: { prompt: '今天吃了半碗粥和蒸蛋，帮我记进食量日记。', cand: { title: '食量候选（演示）', fields: [['日期', '2026-10-25'], ['内容', '照抄记录，不评营养'], ['口径', '事实提醒非命令式，不给食谱']], src: '食量与体重（演示）' } },
   mind: { prompt: '帮我记一条我自己的感受（默认私密，不进导出）。', cand: { title: '感受候选（演示 · 默认私密）', fields: [['内容', '照抄记录'], ['记录人', '本人/照护者（双主体并列不平均）'], ['可见性', 'private（默认不进导出/AI）']], src: '当下感受（演示）' } },
+  trial: { prompt: '把匹配结果里"待确认"的条件整理成问研究护士的问题清单，只整理不改写条件。', cand: { title: '试验问题清单候选（演示）', fields: [['条目 1', 'FLT3 突变 AML 研究：本档案野生型，问是否有不设该条件的组'], ['口径', '匹配结果是检索线索，判定归医生与研究中心'], ['来源', '临床研究 · 匹配结果（演示）']], src: '临床研究（演示）' } },
   docs: { prompt: '帮我把复诊要问的几条整理成疑问清单，标好哪些已经问过。', cand: { title: '疑问清单候选（演示）', fields: [['问题 1', '巩固 2 之后还要做几程？'], ['问题 2', '妹妹的配型结果什么时候出？'], ['来源', '就诊准备生成']], src: '就诊准备（演示）' } }
 };
 
@@ -131,9 +135,11 @@ const state = {
   toggles: { treatment: true, keypoints: true },
   pin: null,
   agent: { open: false, draft: null, cand: null, prompt: '' },
+  /* 临床试验（35 号三步）：trials=检索缓存（null=未加载），filter=检索条件，saved=收藏（dev 走 saved_trial 表，原型 mem） */
+  trial: { loading: false, loaded: false, items: [], snapshotDate: null, source: 'demo', sources: [], filter: { q: '', status: 'all' } },
   mem: {
-    demo1: { temps: [], txf: [], oral: [], meals: [], io: [], feels: [], deaths: [], burdens: [], questions: null, docs: [], additions: {} },
-    demo2: { temps: [], txf: [], oral: [], meals: [], io: [], feels: [], deaths: [], burdens: [], questions: null, docs: [], additions: {} }
+    demo1: { temps: [], txf: [], oral: [], meals: [], io: [], feels: [], deaths: [], burdens: [], questions: null, docs: [], savedTrials: [], additions: {} },
+    demo2: { temps: [], txf: [], oral: [], meals: [], io: [], feels: [], deaths: [], burdens: [], questions: null, docs: [], savedTrials: [], additions: {} }
   }
 };
 /* ---------------- 数据层（原型 / 开发版同一份渲染代码） ----------------
@@ -422,7 +428,7 @@ function pageTxCal() {
   const lead = (new Date(cal.anchor).getDay() + 6) % 7;
   return `${head('诱导日历（按天）', '7+3 到底怎么打的、为什么第 8 天反而最危险——D1–D42 每天一格：化疗打勾、谷值期带、骨穿窗口、当日体温/输注摘要。按天是本页粒度，不做"疗程"聚合（K1）。', aiBtn('tx'), '诱导日历（按天）')}
   <div class="card">
-    <div class="dg-head"><div><span class="eyebrow">读模型 · anchor=${esc(cal.anchor)} · day_index 由 floor((d−anchor)/DAY)+1 派生</span><h2 style="font-size:16px">${esc(cal.label)}</h2></div>${pill('按天粒度', 'org')}</div>
+    <div class="dg-head"><div><span class="eyebrow">读模型 · anchor=${esc(cal.anchor)} · day_index 由 floor((d−anchor)/DAY)+1 派生</span><h2 style="font-size:16px">${esc(cal.label)}</h2></div></div>
     ${dayGridSVGless(cal)}
     <div class="dg-legend">
       <span><i style="background:var(--act-soft)"></i>化疗药打勾</span><span><i style="background:var(--amber-soft)"></i>骨髓抑制谷值窗口（停化疗后 7–14 天）</span>
@@ -677,11 +683,11 @@ function pageTxPath() {
 }
 function pageTxCons() {
   const p = profile(); const c = p.tx.cons || {};
-  const hi = c.hiDAC ? `<div class="card" style="margin-bottom:12px"><div class="card-head"><div><h3 style="font-size:15.5px">${esc(c.hiDAC.title)}</h3><p>${esc(c.hiDAC.dose)}</p></div>${pill('强化巩固', 'blue')}</div>
+  const hi = c.hiDAC ? `<div class="card" style="margin-bottom:12px"><div class="card-head"><div><h3 style="font-size:15.5px">${esc(c.hiDAC.title)}</h3><p>${esc(c.hiDAC.dose)}</p></div></div>
     <div class="kv"><em>医生计划</em><span>${esc(c.hiDAC.plan)}</span></div>
     ${(c.hiDAC.cycles || []).map((x) => `<div class="row-item"><span class="d">${esc(longDate(x.start))} → ${esc(longDate(x.end))}</span><span class="txt"><b>${esc(x.n)}</b> · 按计划完成</span></div>`).join('')}
     <p class="small-note" style="margin-top:8px">${esc(c.hiDAC.note || '')}</p></div>` : '';
-  const va = c.venAza ? `<div class="card" style="margin-bottom:12px"><div class="card-head"><div><h3 style="font-size:15.5px">${esc(c.venAza.title)}</h3><p>${esc(c.venAza.azaDose)}；${esc(c.venAza.venDose)}</p></div>${pill('低强度', 'org')}</div>
+  const va = c.venAza ? `<div class="card" style="margin-bottom:12px"><div class="card-head"><div><h3 style="font-size:15.5px">${esc(c.venAza.title)}</h3><p>${esc(c.venAza.azaDose)}；${esc(c.venAza.venDose)}</p></div></div>
     <div class="kv"><em>剂量阶梯</em><span>${esc(c.venAza.ramp)}</span></div>
     <div class="notice warn" style="margin-top:10px"><b>${esc(c.venAza.interaction.title)}</b><br>${esc(c.venAza.interaction.text)}<div style="margin-top:6px">${pill(c.venAza.interaction.level, 'amber')}</div></div>
     <p class="small-note" style="margin-top:8px">${esc(c.venAza.note || '')}</p></div>` : '';
@@ -848,8 +854,8 @@ function pageChart() {
       <label class="sel-item" style="gap:6px"><input type="checkbox" data-action="treat-toggle" ${state.toggles.treatment ? 'checked' : ''}><span class="nm">显示疗程 / 发作 / 输注节点</span></label>
     </div>
     <div class="chart-body grid-chart">
-      <div class="chart-wrap" style="min-width:0"><div class="scroll-hint">曲线过宽时可横向滚动（有意为之）→</div>${chartSVG(t0t1[0], t0t1[1])}</div>
       <div class="sel-list">${selList}</div>
+      <div class="chart-wrap" style="min-width:0"><div class="scroll-hint">曲线过宽时可横向滚动（有意为之）→</div>${chartSVG(t0t1[0], t0t1[1])}</div>
     </div>
     <div class="chart-legend">${Object.entries(CATALOG).filter(([c]) => sel.includes(c)).map(([c, m]) => `<span><i style="background:${m.color}"></i>${esc(m.name)}</span>`).join('')}</div>
   </div>
@@ -943,15 +949,283 @@ function pageDocsPrep() {
   ${section('两区导出（三出口之一）', `心理与家庭共 ${all.length} 条，私密 ${pn} 条默认不进「给医生的摘要」（K6 sharedOnly）。`, '')}
   <div class="actions">${btn('生成「给医生的病程摘要」', 'export-shared', 'primary', 'data-step="export-shared"')}${btn('生成「自存全量」', 'export-full', 'soft', 'data-step="export-full"')}</div>
   <p class="small-note" style="margin-top:8px">${esc(p.docs.exportNote || '')}</p>
-  <div class="actions" style="margin-top:12px">${go('看试验线索 →', 'docs', 'docs-trial', 'soft', 'data-step="to-docs-trial"')}${go('回到看板', 'dash', '', 'linkish')}</div>`;
+  <div class="actions" style="margin-top:12px">${go('去临床研究（建档/检索/匹配） →', 'trial', 'trial-search', 'soft', 'data-step="to-trial-search"')}${go('回到看板', 'dash', '', 'linkish')}</div>`;
 }
-function pageDocsTrial() {
+
+/* ---------------- 临床研究（35 号 v2：建档 → 检索 → 匹配结果；线索不是推荐） ----------------
+   工作台产出的是**带证据链的检索线索**，不是入组资格结论——判定归医生与研究中心。
+   数据源三态：dev 走 GET /api/aml/trials（本机登记快照 sqlite + snapshotDate + 来源终态摘要，
+   缺文件返回空集不抛错）；file:// 原型回退 demo-data 的 3 条演示线索（横幅明说"演示数据"）。 */
+
+/* 建档事实（TRL-01）：只读展示"能参与匹配"的字段——只有已确认入库（事实层）的才参与匹配。 */
+function trialFacts() {
   const p = profile();
-  const rows = (p.docs.trials || []).map((t) => `<tr><td><b>${esc(t.name)}</b><div class="small-note">${esc(t.note || '')}</div></td><td class="num">${esc(t.nct)}</td><td>${esc(t.center)}</td><td>${pill(t.status, 'amber')}</td></tr>`).join('');
-  return `${head('试验线索', 'venetoclax / FLT3 / IDH 方向的 2026 登记库线索：线索不是推荐；是否适合由医生评估（S12）。', aiBtn('docs'), '试验线索')}
-  <div class="table-wrap"><table><thead><tr><th>研究</th><th>登记号</th><th>中心</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table></div><div class="scroll-hint">左右滑动查看表格</div>
-  <div class="notice plain" style="margin-top:10px">${esc(DATA.meta.trialNote || '')}</div>
-  <div class="actions" style="margin-top:12px">${go('看就诊准备 →', 'docs', 'docs-prep', 'soft', 'data-step="to-docs-prep2"')}${go('回到看板', 'dash', '', 'linkish')}</div>`;
+  const genes = (p.dx.genes || []).map((g) => ({
+    name: g.name,
+    status: g.status === '突变型' ? 'detected' : g.status === '野生型' ? 'not_detected' : 'not_tested',
+    raw: g.vaf && g.vaf !== '—' ? g.vaf : '',
+    method: g.method && g.method !== '—' ? g.method : '',
+    d: g.d || '',
+  }));
+  const dxDay = (p.dx.timeline || []).find((x) => x.precision === 'day');
+  const cycles = (p.tx.cycles || []);
+  return {
+    subtype: p.dx.subtype?.who || '未记录',
+    subtypeSrc: dxDay ? `确诊日期 ${longDate(dxDay.d)}（住院记录）` : '医院报告原文',
+    genes,
+    priorLines: cycles.length,
+    priorLinesNote: cycles.map((c) => c.kind).join('、') || '无治疗记录',
+  };
+}
+/* 基因名 → 检索符号（FLT3-ITD → FLT3；'IDH1 / IDH2' → [IDH1, IDH2]） */
+const geneSymbols = (name) => String(name).split(/[／/、,，;；]/).map((s) => s.trim().split('-')[0]).filter(Boolean);
+
+/* 方向词与文本词表（AML 原创对照 35 号 §二：结构化命中 / 文本命中 / 宽口径命中） */
+const AML_WORDS = ['急性髓系白血病', '急性粒细胞白血病', '急非淋', 'AML', '髓系白血病', '髓系肿瘤'];
+const OTHER_DISEASE_WORDS = ['实体瘤', '实体肿瘤', '淋巴瘤', '骨髓瘤', '慢性粒细胞白血病', '急性淋巴细胞白血病', '骨髓增生异常', 'MDS', 'CML', 'ALL'];
+const BROAD_WORDS = ['实体瘤', '罕见病', '恶性肿瘤', '晚期肿瘤', '血液肿瘤', '血液系统疾病'];
+const DRUG_WORDS = ['维奈克拉', 'Venetoclax', '阿扎胞苷', 'Azacitidine', '阿糖胞苷', 'Ara-C', 'Cytarabine', '柔红霉素', 'Daunorubicin', 'DNR', '地西他滨', 'Decitabine', '米托蒽醌', 'Quizartinib', '吉瑞替尼', 'Gilteritinib', '艾伏尼布', 'Ivosidenib', '恩西地平', 'Enasidenib', 'Midostaurin', '吉妥珠单抗', 'Gemtuzumab', 'CPI-613', 'Magrolimab'];
+const STATUS_LABEL = { recruiting: '招募中', not_yet: '即将招募', suspended: '在研，不招募', other: '其他（含未核实）' };
+const GENE_STATE_LABEL = { detected: '阳性（突变型）', not_detected: '阴性（野生型）', not_tested: '未检测' };
+/* 四档分层（35 号 v2）：硬性条件不满足单列组不排前；pct 旁固定写"这不是入组资格，也不代表效果"。 */
+const TRIAL_BAND = {
+  high: ['高度符合', 'ok'],
+  partial: ['部分符合', 'warn'],
+  needs_info: ['需补充信息', 'grey'],
+  ineligible: ['硬性条件不满足', 'no']
+};
+const trialStatusOf = (t) => t.status || (/即将招募/.test(t.statusNote || '') ? 'not_yet' : /招募中/.test(t.statusNote || '') ? 'recruiting' : /不招募|暂停|终止/.test(t.statusNote || '') ? 'suspended' : 'other');
+function trialPhaseOf(title) {
+  const m = String(title || '').match(/(Ⅲ|Ⅱ|Ⅰ|III|II|I|[1-3一二三])\s*期/);
+  if (!m) return '期别未标注';
+  const map = { 'Ⅲ': '3', 'Ⅱ': '2', 'Ⅰ': '1', III: '3', II: '2', I: '1', '3': '3', '2': '2', '1': '1', 三: '3', 二: '2', 一: '1' };
+  return `${map[m[1]] || '?'} 期`;
+}
+
+/* 匹配引擎（35 号 v2）：逐条件三态 eval（✓符合 / ✕不符合 / ?待确认）；
+   登记条目没有可对照结构化条件的，整条归"无法自动匹配"，不算 0 分也不算不适用。 */
+function matchTrial(trial, facts) {
+  const title = String(trial.title || '');
+  const up = title.toUpperCase();
+  const evals = [];
+  const textHits = [];
+  /* 瘤种（硬性）：标题含 AML 词 → ✓；含其它瘤种词 → ✕；两者皆无 → 不对照 */
+  const amlHit = AML_WORDS.find((w) => up.includes(w.toUpperCase()));
+  const otherHit = OTHER_DISEASE_WORDS.find((w) => up.includes(w.toUpperCase()));
+  if (amlHit) evals.push({ kind: '瘤种', state: 'met', hard: true, need: '急性髓系白血病（AML）', actual: `标题含「${amlHit}」`, hitWord: amlHit });
+  else if (otherHit) evals.push({ kind: '瘤种', state: 'unmet', hard: true, need: '急性髓系白血病（AML）', actual: `标题含「${otherHit}」，瘤种方向与 AML 不一致`, hitWord: otherHit });
+  /* 结构化命中：建档基因（detected/not_detected）出现在标题方向词里 → 带证据；
+     not_tested → ?待确认（未检测不显示为阴性，也不判不符合）。 */
+  for (const g of facts.genes) {
+    const sym = geneSymbols(g.name).find((s) => up.includes(s.toUpperCase()));
+    if (!sym) continue;
+    const src = [g.raw, g.d ? `${g.d} 报告` : ''].filter(Boolean).join('，');
+    if (g.status === 'detected') {
+      evals.push({ kind: '基因方向', state: 'met', hard: false, need: `${sym}（条件方向词）`, actual: `记录里是：${g.name} 阳性（${src || '报告原文'}）· 条件方向含：${sym}`, hitWord: sym });
+    } else if (g.status === 'not_detected') {
+      evals.push({ kind: '基因方向', state: 'unmet', hard: true, need: `${sym} 突变（条件方向词）`, actual: `记录里是：${g.name} 阴性（野生型，${src || '报告原文'}）· 条件方向要求：${sym} 突变`, hitWord: sym });
+    } else {
+      evals.push({ kind: '基因方向', state: 'unknown', hard: false, need: `${sym}（条件方向词）`, actual: `记录里是：${g.name} 未检测（报告未包含该位点）· 条件方向含：${sym}`, hitWord: sym });
+    }
+  }
+  /* 文本命中（瘤种/药物词重合 → 只列命中词，不改变三态） */
+  for (const w of DRUG_WORDS) if (up.includes(w.toUpperCase())) textHits.push({ word: w, where: '标题' });
+  /* 没有任何可对照的结构化条件 → 整条"无法自动匹配"（宽口径词重合的标"宽口径"排末尾） */
+  if (!evals.length) {
+    const broadHit = BROAD_WORDS.find((w) => up.includes(w.toUpperCase()));
+    const reason = broadHit ? `仅宽口径词「${broadHit}」重合——没有可对照的结构化条件` : textHits.length ? '仅药物词重合——登记条目未含可对照的结构化条件' : '登记条目未含可对照的结构化条件';
+    return { trial, band: 'unmatched', broad: Boolean(broadHit), pct: null, evals: [], textHits, reason, met: 0, unmet: 0, unknown: 0 };
+  }
+  const met = evals.filter((e) => e.state === 'met').length;
+  const unmet = evals.filter((e) => e.state === 'unmet').length;
+  const unknown = evals.filter((e) => e.state === 'unknown').length;
+  const hardUnmet = evals.filter((e) => e.state === 'unmet' && e.hard);
+  /* 粗筛符合度 = 符合 ÷ 已对照项（待确认按 0 计 → 只偏低不偏高），整数百分数 */
+  const pct = Math.round((met / Math.max(1, met + unmet + unknown)) * 100);
+  const band = hardUnmet.length ? 'ineligible' : (pct >= 80 && unknown === 0) ? 'high' : pct >= 55 ? 'partial' : 'needs_info';
+  return { trial, band, broad: false, pct, evals, textHits, hardUnmet, met, unmet, unknown };
+}
+const matchAll = () => { const facts = trialFacts(); return state.trial.items.map((t) => matchTrial(t, facts)); };
+
+/* 检索数据源：dev 走 /api/aml/trials；file:// 原型回退演示数据（横幅明说）。 */
+function ensureTrials() {
+  if (state.trial.loaded || state.trial.loading) return;
+  const base = apiBase();
+  if (base === null) {
+    const demo = (profile().docs.trials || []).map((t, i) => ({
+      key: `DEMO-${i + 1}`, title: t.name, registry: t.nct || '登记号未记',
+      sponsor: t.center || '', status: t.status ? (/即将招募/.test(t.status) ? 'not_yet' : /招募中/.test(t.status) ? 'recruiting' : 'other') : 'other',
+      statusNote: t.status || '登记状态，未核实', url: '', source: '演示数据',
+    }));
+    state.trial = { ...state.trial, loading: false, loaded: true, items: demo, snapshotDate: null, source: 'demo', sources: [] };
+    return;
+  }
+  state.trial.loading = true;
+  const f = state.trial.filter;
+  const qs = new URLSearchParams();
+  if (f.q.trim()) qs.set('keyword', f.q.trim());
+  if (f.status !== 'all') qs.set('status', f.status);
+  qs.set('limit', '200');
+  fetch(`${base}/trials?${qs.toString()}`, { headers: { accept: 'application/json' }, credentials: 'same-origin' })
+    .then((res) => res.json())
+    .then(async (data) => {
+      state.trial = { loading: false, loaded: true, items: data.items || [], snapshotDate: data.snapshotDate ?? null, source: data.source || 'snapshot', sources: data.sources || [], filter: state.trial.filter };
+      /* 收藏水合：dev 把 saved_trial 表读进来（原型是 mem，本就同步）。 */
+      try {
+        const saved = await (await fetch(`${base}/saved-trials?profile=${encodeURIComponent(state.profileId)}`, { credentials: 'same-origin' })).json();
+        mem().savedTrials = (saved.items || []).map((s) => ({ trialKey: s.trialKey, savedAt: s.savedAt }));
+      } catch { /* 收藏读不到不挡检索 */ }
+      render();
+    })
+    .catch(() => {
+      state.trial = { loading: false, loaded: true, items: [], snapshotDate: null, source: 'unreachable', sources: [], filter: state.trial.filter };
+      render();
+    });
+}
+function trialItemsFiltered() {
+  const f = state.trial.filter;
+  const q = f.q.trim().toLowerCase();
+  return state.trial.items.filter((t) => {
+    if (q && !`${t.title} ${t.registry}`.toLowerCase().includes(q)) return false;
+    if (f.status !== 'all' && trialStatusOf(t) !== f.status) return false;
+    return true;
+  });
+}
+const savedTrialKeys = () => { const m = mem(); if (!m.savedTrials) m.savedTrials = []; return m.savedTrials; };
+const isTrialSaved = (key) => savedTrialKeys().some((s) => s.trialKey === key);
+async function toggleSaveTrial(key) {
+  if (isTrialSaved(key)) { toast('这条已在收藏里（可在检索页再看）'); return; }
+  const base = apiBase();
+  if (base !== null && DATA_SOURCE === 'api') {
+    try {
+      const res = await fetch(`${base}/saved-trials`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify({ profileId: state.profileId, trialKey: key }),
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+    } catch { toast('收藏没写进库（稍后再试）'); return; }
+  }
+  savedTrialKeys().push({ trialKey: key, savedAt: TODAY });
+  toast('已收藏。线索不是推荐；判定归医生与研究中心');
+  render();
+}
+
+/* 收藏按钮（每条线索一个；dev 落 saved_trial 表，原型记内存） */
+const trialSaveBtn = (t) => {
+  const saved = isTrialSaved(t.key);
+  return `<button class="${saved ? 'soft' : 'primary'}" data-action="trial-save" data-key="${esc(t.key)}">${saved ? '已收藏' : '收藏'}</button>`;
+};
+
+function pageTrialFacts() {
+  const f = trialFacts();
+  const cnt = { detected: 0, not_detected: 0, not_tested: 0 };
+  f.genes.forEach((g) => { cnt[g.status] += 1; });
+  const geneRows = f.genes.map((g) => {
+    const cls = g.status === 'detected' ? 'amber' : g.status === 'not_detected' ? 'green' : 'dashed';
+    const detail = g.status === 'not_tested'
+      ? '未检测（报告未包含该位点）——未检测不显示为阴性'
+      : [g.raw, g.method, g.d ? `${g.d} 报告` : ''].filter(Boolean).join(' · ') || '报告原文';
+    return `<div class="row-item"><span class="d">${g.d ? esc(longDate(g.d)) : '未检测'}</span><span class="txt"><b>${esc(g.name)}</b> ${pill(GENE_STATE_LABEL[g.status], cls)}<div class="small-note">${esc(detail)}</div></span></div>`;
+  }).join('');
+  return `${head('临床研究 · 建档', '只读清单：能拿去和登记条目对照的建档字段。每一项都来自已确认入库的报告原文，带来源日期；缺的字段后面判"无法自动匹配"，不判"不适用"。', aiBtn('trial'), '临床研究 · 建档')}
+  <div class="card" style="margin-bottom:12px">
+    <span class="eyebrow">可参与匹配的建档字段</span>
+    <div class="fact-grid">
+      <dl><dt>亚型（报告原文）</dt><dd>${esc(f.subtype)}<span>${esc(f.subtypeSrc)}</span></dd></dl>
+      <dl><dt>基因检测结果</dt><dd>${cnt.detected} 项检出 · ${cnt.not_detected} 项未检出 · ${cnt.not_tested} 项未检测<span>三态照抄报告：检出 / 未检出 / 未检测（未检测 ≠ 阴性）</span></dd></dl>
+      <dl><dt>既往治疗线数</dt><dd>${f.priorLines} 线<span>按疗程记录计数：${esc(f.priorLinesNote)}</span></dd></dl>
+    </div>
+    <div class="list" style="margin-top:10px">${geneRows}</div>
+  </div>
+  <div class="notice plain" style="margin-bottom:12px">这些字段只有「已确认入库」的才参与匹配；候选、待核对与未建档的字段不参与（35 号 §一）。</div>
+  <div class="actions">${go('去检索 →', 'trial', 'trial-search', 'primary', 'data-step="to-trial-search"')}${go('看匹配结果 →', 'trial', 'trial-match', 'soft', 'data-step="to-trial-match"')}${go('回到看板', 'dash', '', 'linkish')}</div>`;
+}
+
+function pageTrialSearch() {
+  ensureTrials();
+  const f = state.trial.filter;
+  const items = trialItemsFiltered();
+  const t = state.trial;
+  const banner = t.source === 'demo'
+    ? `<div class="notice warn" style="margin-bottom:12px"><b>演示数据：</b>以下条目来自合成演示，不是真实登记库。开发版走本机登记快照（含快照日期与来源终态）。</div>`
+    : t.source === 'missing'
+      ? `<div class="notice warn" style="margin-bottom:12px"><b>登记快照缺失：</b>本机没找到 AML 登记快照文件——列表为空，不编数据。用 fetch 脚本重建后重启。</div>`
+      : t.source === 'unreachable'
+        ? `<div class="notice warn" style="margin-bottom:12px"><b>检索服务没连上：</b>列表为空，不编数据；稍后重试。</div>`
+        : '';
+  const sourcesLine = (t.sources || []).length
+    ? `<div class="small-note" style="margin-top:6px">来源终态：${t.sources.map((s) => `${esc(s.sourceId)} ${esc(s.state)}${s.totalRecords ? `（${s.totalRecords} 条）` : ''}`).join(' · ')}——FAILED 的来源不算"查过"，零结果不能证明不存在。</div>`
+    : '';
+  const statusSel = `<label>状态筛选<select data-action="trial-status">${[['all', '不限'], ['recruiting', '招募中'], ['not_yet', '即将招募'], ['suspended', '在研，不招募'], ['other', '其他（含未核实）']].map(([v, n]) => `<option value="${v}" ${f.status === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>`;
+  const rows = items.map((x) => `<tr><td class="num">${esc(x.registry || '—')}</td>
+    <td>${pill('未核验', 'dashed')} ${pill(STATUS_LABEL[trialStatusOf(x)] || '其他', 'grey')}</td>
+    <td>${esc(trialPhaseOf(x.title))}</td>
+    <td>${esc(x.sponsor || '发起方未标注')}</td>
+    <td><b>${esc(x.title)}</b>${x.source === '演示数据' ? ' <span class="small-note">（演示）</span>' : ''}</td></tr>`).join('');
+  return `${head('临床研究 · 检索', '按条件找登记条目，不是替你挑：关键词 + 状态筛选；逐条登记号、状态、期别、发起方。线索不是推荐；是否适合由医生与研究中心评估。', aiBtn('trial'), '临床研究 · 检索')}
+  ${banner}
+  <div class="card" style="margin-bottom:12px">
+    <div class="trial-filter">
+      <label style="flex:1 1 240px">关键词（标题 / 登记号）<input type="search" data-action="trial-q" value="${esc(f.q)}" placeholder="如 FLT3 / 维奈克拉 / CTR"></label>
+      ${statusSel}
+    </div>
+    <div class="notice plain" style="margin-top:10px;margin-bottom:0"><b>登记状态 ≠ 有效 ≠ 安全 ≠ 可入组</b>；快照日期 ${t.snapshotDate ? esc(t.snapshotDate) : '未知（演示数据无快照）'}，登记库会过期。</div>${sourcesLine}
+  </div>
+  ${t.loading ? '<div class="card"><p class="small-note">正在取登记快照…</p></div>' : `
+  <div class="table-wrap"><table><thead><tr><th>登记号</th><th>状态</th><th>期别</th><th>发起方</th><th>标题</th></tr></thead><tbody>${rows || '<tr><td colspan="5">没有符合条件的条目——放宽关键词再试；零结果不能证明不存在。</td></tr>'}</tbody></table></div><div class="scroll-hint">左右滑动查看表格</div>`}
+  <div class="actions" style="margin-top:12px">${go('回建档 →', 'trial', 'trial-facts', 'soft', 'data-step="to-trial-facts"')}${go('看匹配结果 →', 'trial', 'trial-match', 'primary', 'data-step="to-trial-match"')}${go('回到看板', 'dash', '', 'linkish')}</div>`;
+}
+
+/* 单条线索卡：pct 旁固定写"这不是入组资格，也不代表效果"；证据逐条可点开。 */
+function trialCard(m) {
+  const t = m.trial;
+  const [bandLabel, bandCls] = TRIAL_BAND[m.band];
+  const critIcon = (s) => `<span class="crit-mark ${s === 'met' ? 'ok' : s === 'unmet' ? 'no' : 'grey'}" aria-hidden="true">${s === 'met' ? '✓' : s === 'unmet' ? '✕' : '?'}</span>`;
+  const critLine = (e) => `<div class="crit ${e.state === 'met' ? 'hit' : e.state === 'unmet' ? 'miss' : 'unknown'}">
+    <div><b>${esc(e.kind)}</b>${e.hard ? ' <span class="small-note">硬性</span>' : ''}</div>
+    <p>${critIcon(e.state)}${esc(e.need)}</p>
+    <small>${esc(e.actual)}</small>
+  </div>`;
+  const textLine = m.textHits.length ? `<div class="crit"><div><b>文本命中（词重合，不改变三态）</b></div><p>${m.textHits.map((h) => `「${esc(h.word)}」`).join('、')} <span class="small-note">出现位置：${m.textHits.map((h) => esc(h.where)).join('、')}</span></p></div>` : '';
+  const order = { unmet: 0, unknown: 1, met: 2 };
+  const sorted = [...m.evals].sort((a, b) => order[a.state] - order[b.state]);
+  return `<section class="trial-card">
+    <div class="trial-top">
+      <div style="min-width:0">
+        <div class="trial-tags">${pill('未核验', 'dashed')}${pill(STATUS_LABEL[trialStatusOf(t)] || '其他', 'grey')}${pill(trialPhaseOf(t.title), 'grey')}${m.textHits.length ? pill('文本命中', 'blue') : ''}</div>
+        <h3>${esc(t.title)}</h3>
+        <p class="trial-reg">${esc(t.registry || '登记号未记')} · ${esc(t.sponsor || '发起方未标注')}</p>
+      </div>
+      <div class="fit ${bandCls}"><b>${m.pct}<small>%</small></b><span>粗筛符合度</span><em>${bandLabel}</em><p class="trial-disc">这不是入组资格，也不代表效果</p></div>
+    </div>
+    <div class="crit-list">${sorted.map(critLine).join('')}${textLine}</div>
+    <div class="trial-actions actions" style="margin-top:10px">${trialSaveBtn(t)}</div>
+    <p class="trial-note">粗筛符合度 = 符合 ÷ 已对照项（待确认按 0 计，只偏低不偏高）。匹配结果是检索线索，判定归医生与研究中心。</p>
+  </section>`;
+}
+
+function pageTrialMatch() {
+  ensureTrials();
+  const t = state.trial;
+  if (!t.loaded) {
+    return `${head('临床研究 · 匹配结果', '按当前建档逐条对照登记条目；先等检索快照到位。', '', '临床研究 · 匹配结果')}
+    <div class="card"><p class="small-note">正在取登记快照…</p></div>`;
+  }
+  const facts = trialFacts();
+  const all = matchAll();
+  const bandOrder = { high: 0, partial: 1, needs_info: 2 };
+  const geneHits = (m) => m.evals.filter((e) => e.kind === '基因方向' && e.state === 'met').length;
+  const fit = all.filter((m) => m.band in bandOrder)
+    .sort((a, b) => geneHits(b) - geneHits(a) || b.pct - a.pct || (a.pct === b.pct ? 0 : 0));
+  const bad = all.filter((m) => m.band === 'ineligible');
+  const unmatched = all.filter((m) => m.band === 'unmatched').sort((a, b) => Number(a.broad) - Number(b.broad));
+  const unmatchedRow = (m) => `<div class="row-item"><span class="txt"><b>${esc(m.trial.title)}</b> ${m.broad ? pill('宽口径', 'dashed') : ''}<div class="small-note">${esc(m.trial.registry || '登记号未记')} · ${esc(m.reason)}${m.textHits.length ? ` · 词重合：${m.textHits.map((h) => esc(h.word)).join('、')}` : ''}</div></span>${trialSaveBtn(m.trial)}</div>`;
+  return `${head('临床研究 · 匹配结果', '按当前建档逐条三态对照（✓符合 / ✕不符合 / ?待确认）：粗筛符合度只是参考分，产出的是带证据链的检索线索。线索不是推荐。', aiBtn('trial'), '临床研究 · 匹配结果')}
+  <div class="notice plain" style="margin-bottom:12px"><b>匹配结果是检索线索，判定归医生与研究中心。</b>登记状态 ≠ 有效 ≠ 安全 ≠ 可入组；快照日期 ${t.snapshotDate ? esc(t.snapshotDate) : '未知（演示数据）'}，登记库会过期。</div>
+  ${fit.length ? `<div class="section-title"><div><h2>可对照的条目（${fit.length}）</h2><p>结构化命中排前；待确认项越多，符合度越低</p></div></div>${fit.map((m) => trialCard(m)).join('')}` : `<div class="empty"><h3>没有可对照的条目</h3><p>先去「检索」缩小范围，或回「建档」补齐检测。</p></div>`}
+  ${bad.length ? `<details class="bad-trials" style="margin:6px 0 12px"><summary style="cursor:pointer;font-size:13.5px">硬性条件不满足的 ${bad.length} 条（点开看是哪一条挡住了——单列在这里，不排进前面）</summary>${bad.map((m) => trialCard(m)).join('')}</details>` : ''}
+  ${unmatched.length ? `<details class="bad-trials" style="margin:6px 0 12px"><summary style="cursor:pointer;font-size:13.5px">无法自动匹配的 ${unmatched.length} 条（登记条目未含可对照的结构化条件——不算 0 分，也不算不适用）</summary><div class="card">${unmatched.map(unmatchedRow).join('')}</div></details>` : ''}
+  <div class="actions" style="margin-top:12px">${go('回检索 →', 'trial', 'trial-search', 'soft', 'data-step="to-trial-search"')}${go('回建档 →', 'trial', 'trial-facts', 'soft', 'data-step="to-trial-facts"')}${go('回到看板', 'dash', '', 'linkish')}</div>`;
 }
 
 /* ---------------- 疾病概要（36 号「?」入口） ----------------
@@ -1113,7 +1387,8 @@ const ROUTES = {
   chart: pageChart,
   'care': pageCareIntake, 'care/care-intake': pageCareIntake, 'care/care-safe': pageCareSafe,
   'mind': pageMindFeel, 'mind/mind-feel': pageMindFeel, 'mind/mind-death': pageMindDeath, 'mind/mind-burden': pageMindBurden,
-  'docs': pageDocsLib, 'docs/docs-lib': pageDocsLib, 'docs/docs-cand': pageDocsCand, 'docs/docs-prep': pageDocsPrep, 'docs/docs-trial': pageDocsTrial
+  'trial': pageTrialFacts, 'trial/trial-facts': pageTrialFacts, 'trial/trial-search': pageTrialSearch, 'trial/trial-match': pageTrialMatch,
+  'docs': pageDocsLib, 'docs/docs-lib': pageDocsLib, 'docs/docs-cand': pageDocsCand, 'docs/docs-prep': pageDocsPrep
 };
 function render() {
   const main = $('#main');
@@ -1183,8 +1458,18 @@ document.addEventListener('click', (e) => {
   if (a === 'pick-profile') { state.profileId = el.dataset.id; state.pin = null; closeModal(); render(); toast(`已切换到 ${profile().name}（演示）`); return; }
   if (a === 'sel') {
     const c = el.dataset.code; const arr = state.sel[state.profileId];
-    if (el.checked) { if (arr.length >= 4) { el.checked = false; toast('最多同时看 4 个指标；先取消一个再加。'); return; } arr.push(c); }
-    else { if (arr.length === 1) { el.checked = true; toast('至少留一个指标。'); return; } state.sel[state.profileId] = arr.filter((x) => x !== c); }
+    /* 0.4.0 真机走查：上限 4 → 6（CATALOG 全部 6 个指标可同屏），修"选满后点第 5 个像点不动"——
+       现在加选成功也给反馈（已加到图上：X）；超限仍然回弹 checkbox + 说明（check-choice-limit 守着）。 */
+    if (el.checked) {
+      if (arr.includes(c)) { render(); return; }
+      if (arr.length >= 6) { el.checked = false; toast('最多同时看 6 个指标；先取消一个再加。'); return; }
+      arr.push(c);
+      const name = CATALOG[c]?.name || c;
+      toast(`已加到图上：${name}`);
+    } else {
+      if (arr.length === 1) { el.checked = true; toast('至少留一个指标。'); return; }
+      state.sel[state.profileId] = arr.filter((x) => x !== c);
+    }
     render(); return;
   }
   if (a === 'q-asked') { const q = questions().find((x) => x.id === el.dataset.id); if (q) { q.asked = el.checked; toast(q.asked ? '已标记"已问"' : '恢复为待问'); } return; }
@@ -1199,6 +1484,8 @@ document.addEventListener('click', (e) => {
   if (a === 'cand-ok') { toast('演示：核对通过后进入事实层（原型仅示意，不写库）', { long: true }); return; }
   if (a === 'cand-fix') { toast('演示：进入逐项修改（每项都可以改）'); return; }
   if (a === 'cand-reject') { toast('已拒收这条候选（无副作用）'); return; }
+  /* 临床试验收藏（35 号 §一第 4 段）：dev 落 saved_trial 表，原型记内存 */
+  if (a === 'trial-save') { toggleSaveTrial(el.dataset.key); return; }
   if (a === 'export-shared') { showExport(false); return; }
   if (a === 'export-full') { showExport(true); return; }
   /* 表单类（每页显式编辑入口 ≤1；每表单 ≤6 字段） */
@@ -1317,6 +1604,9 @@ document.addEventListener('change', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const a = el.dataset.action;
+  /* 临床研究检索条件：改条件 → 重新取数（dev 走服务端参数，原型本地过滤） */
+  if (a === 'trial-q') { state.trial.filter.q = el.value || ''; state.trial.loaded = false; ensureTrials(); render(); return; }
+  if (a === 'trial-status') { state.trial.filter.status = el.value; state.trial.loaded = false; ensureTrials(); render(); return; }
   if (a === 'sel' || a === 'treat-toggle' || a === 'q-asked') {
     const ev = new Event('click', { bubbles: true });
     Object.defineProperty(ev, 'target', { value: el, writable: false });

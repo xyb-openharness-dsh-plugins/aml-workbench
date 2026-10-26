@@ -31,7 +31,8 @@ const ROUTES = [
   'tp/tp-eval', 'tp/tp-donor', 'tp/tp-day',
   'care/care-intake', 'care/care-safe',
   'mind/mind-feel', 'mind/mind-death', 'mind/mind-burden',
-  'docs/docs-lib', 'docs/docs-cand', 'docs/docs-prep', 'docs/docs-trial'
+  'trial/trial-facts', 'trial/trial-search', 'trial/trial-match',
+  'docs/docs-lib', 'docs/docs-cand', 'docs/docs-prep'
 ];
 
 const ch = await launchChrome({ port: CDP_PORT });

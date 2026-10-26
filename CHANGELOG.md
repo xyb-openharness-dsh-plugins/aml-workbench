@@ -2,6 +2,15 @@
 
 只增不删；每条写清"改了什么 + 为什么 + 用户可见结果"。版本号与 VERSION、package.json 三处必须一致。
 
+## 0.4.0 — 2026-10-26
+
+真机走查四条反馈 + AI 写入能力（0.2.0 原型 → 0.4.0 开发版）。包版本 0.4.0（VERSION / package.json / lib/version.js / 页面 ver-chip 同源）。
+
+1. **一图秀（反馈 1）**：指标选择栏从图右移到**图左**（`.grid-chart` 改 `260px minmax(0,1fr)`，DOM 顺序 sel-list 在前）；指标选择上限 4 → **6**（CATALOG 全部 6 个指标可同屏），保留"至少留一个"下限与超限回弹；加选成功 toast 改为「已加到图上：X」——修掉"选满 4 个后点第 5 个只弹提示、勾又被回退，用户以为点不动"的感知问题。
+2. **文字降权（反馈 2）**：核心内容（数值/曲线/表格/按钮）突出，辅助信息让位——`.notice / .warn-card / .hl-def / .stage-quote` 统一 12.5px、正文转 muted、背景调淡、padding 收紧、边框降细（warn 保留浅红但降饱和）；`.head p` 长说明句 13.5 → 12.5px；删 3 个纯装饰胶囊（按天粒度/强化巩固/低强度），状态类胶囊保留；红线文案一字未改（feverDef 常驻、三出口口径、零推荐、"线索不是推荐"仍在，只是视觉降权）。
+3. **临床研究升一级菜单 + 按 35 号 v2 重做（反馈 3）**：新增一级线 `trial 临床研究`（建档/检索/匹配结果三个二级），docs 线的 docs-trial 二级下线，S06/S12 场景改指 trial 线。建档页只读展示可参与匹配的字段（亚型原文+来源日期 / 基因三态+VAF 原文+检测日期，**未检测不显示为阴性** / 既往治疗线数），页脚常驻"只有已确认入库的才参与匹配"；检索页关键词+状态筛选、逐条登记号/状态（**无核验日期显示"未核验"**）/期别/发起方/标题，dev 走 `GET /api/aml/trials`（读 research/aml-cancer 快照 sqlite，含 snapshotDate 与来源终态摘要，缺文件返回空集不抛错），原型回退演示数据+演示横幅，常驻句"登记状态 ≠ 有效 ≠ 安全 ≠ 可入组；快照日期 <snapshotDate>，登记库会过期"；匹配页按 35 号 v2——逐条件三态（✓/✕/?）、登记条目无可对照结构化条件的整条归"无法自动匹配"、结构化命中高亮证据（"记录里是：… · 条件方向含：…"）、文本命中列命中词、宽口径标"宽口径"排末尾、粗筛符合度 pct=符合÷已对照项（待确认按 0 计）旁固定写"这不是入组资格，也不代表效果"、四档分层（高度符合/部分符合/需补充信息/硬性条件不满足单列不排前）、收藏落 `saved_trial`（dev POST /api/aml/saved-trials，原型 mem）。页首常驻"匹配结果是检索线索，判定归医生与研究中心"。
+4. **AI 写入能力（反馈 4）**：新增通用写路由 `POST /api/aml/records/:kind` + `GET /api/aml/records/:kind?profile=`（kind 白名单 8 种：transfusion / mucositis / marrow-procedure / feeling / question / intake / tx-day / document；列名与 schema/0001 逐列一致，author_role 默认 CAREGIVER（K6 家属代记为主）、DEATH_PREP→private 其余 public、非法 kind 400 JSON；private 默认过滤）。原生 Agent/会话与手工表单走同一条写路径（34 号语义：AI 产出一律先落候选，确认后才写事实层）；health/bootstrap capabilities 补齐 `trials.read / saved-trials.write / records.<kind>` 全量契约面。新增检查器 `scripts/check-write-schema.mjs`（写映射列名 PRAGMA 对表校验 / 路由 kind 与 store 方法双向核对 / capabilities 与白名单一致，进 check 链）、`scripts/check-trial-matching.mjs`（35 号 §四三态断言落仓进链）；`test/records-write.test.mjs` 覆盖每种 kind 写→读回→private 过滤→非法 kind 400。
+
 ## 0.3.0 — 2026-10-26
 
 M5 七步移植（开发版可用，**装机未验证**）。包版本 0.3.0（VERSION / package.json / lib/version.js / 页面 ver-chip 同源）。
@@ -67,3 +76,7 @@ M5 七步移植（V1 通过：check 全绿 + 83/83 测试 + audit 43/43 独立�
 - 修复：删除该 ctx 写（数据源形态本来已通过 `bootstrap.source` 字段回报，功能无损）。
 - 新增 `scripts/check-ctx-provide.mjs`（来自脚手架）：静态扫描 `ctx.<key> = …` 是否都在 `provide` 声明内；正负例实测。
 - 教训：**桩件烟测不校验 provide**——`smoke:activate` 全绿、真宿主挂。这类"只有真宿主才走到"的校验必须静态化。
+
+## 0.4.0 补记（复核阶段修复）
+
+- **dev-server 内存演示库缺新方法**：0.4.0 的 listTrials/addRecord/listRecords/addSavedTrial/listSavedTrials 只接在 workspace 门面上，独立启动形态 500（records_write/trials_read）。已补齐两形态能力一致，CDP 实测：匹配页四档词/无法自动匹配/这不是入组资格/未核实/快照全在场；POST records/transfusion → GET 回读 +1；非法 kind 400。

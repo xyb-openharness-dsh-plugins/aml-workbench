@@ -14,6 +14,9 @@
  *   H4 private 三出口：bootstrap / profile / 导出 都不含私密正文；?private=1 才给
  *   H5 UI 前缀能取到 index.html，且页面里的数据层真的走 bootstrap（不是死数据）
  *   H6 未知路径回 JSON 404（不是 HTML —— 否则前端报 Unexpected token '<'）
+ *   H7 临床试验（35 号）：capabilities 契约面 / trials 快照可读（snapshotDate+来源终态）
+ *      / 收藏落 saved_trial 并回读 / 缺 profile 400
+ *   H8 通用记录写读：8 kind 的契约面抽查（写→回读→private 默认过滤→非法 kind 400→缺必填 400）
  *
  * 用法：
  *   node scripts/probe-aml-m5.mjs               起临时工作区（系统分配的端口），跑完清理
@@ -137,6 +140,71 @@ async function probe() {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: '{oops',
   })
   record('H6c 坏 JSON 400（不裸 500）', badTemp.status === 400, `status=${badTemp.status}`)
+
+  /* H7 临床试验检索（35 号）：快照可读 / keyword 过滤 / 收藏落 saved_trial */
+  const healthCaps = (await (await fetch(`${base}/api/aml/health`)).json()).capabilities ?? []
+  record('H7 health capabilities 带 0.4.0 契约面',
+    ['trials.read', 'saved-trials.write', 'records.write', 'records.feeling'].every((c) => healthCaps.includes(c)),
+    `缺 ${['trials.read', 'saved-trials.write', 'records.write', 'records.feeling'].filter((c) => !healthCaps.includes(c)).join(',') || '无'}`)
+  const trials = await (await fetch(`${base}/api/aml/trials?keyword=FLT3&limit=5`)).json()
+  record('H7b trials 快照可读', trials.source === 'snapshot' && Array.isArray(trials.items) && trials.items.length > 0,
+    `source=${trials.source} items=${trials.items?.length} snapshotDate=${trials.snapshotDate}`)
+  record('H7c 快照带 snapshotDate 与未核实语义',
+    /^\d{4}-\d{2}-\d{2}/.test(trials.snapshotDate ?? '') && (trials.items?.[0]?.statusNote ?? '').includes('未核实'),
+    `snapshotDate=${trials.snapshotDate} statusNote=${trials.items?.[0]?.statusNote}`)
+  record('H7d 来源终态摘要在场', Array.isArray(trials.sources) && trials.sources.length > 0
+    && trials.sources.some((s) => s.state === 'FAILED' || s.state === 'SUCCESS'),
+    `sources=${(trials.sources ?? []).map((s) => `${s.sourceId}:${s.state}`).join(',')}`)
+  const trialsNoHit = await (await fetch(`${base}/api/aml/trials?keyword=ZZZ无此词ZZZ`)).json()
+  record('H7e 零命中也是 200 空列表', trialsNoHit.source === 'snapshot' && trialsNoHit.items.length === 0,
+    `items=${trialsNoHit.items?.length}`)
+  const savedPost = await fetch(`${base}/api/aml/saved-trials`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ profileId: 'demo1', trialKey: trials.items?.[0]?.key ?? 'CTR-TEST' }),
+  })
+  const savedBody = await savedPost.json().catch(() => null)
+  record('H7f 收藏 200 且落库', savedPost.status === 200 && savedBody?.trialKey, JSON.stringify(savedBody).slice(0, 120))
+  const savedList = await (await fetch(`${base}/api/aml/saved-trials?profile=demo1`)).json()
+  record('H7g 收藏回读', (savedList.items ?? []).some((s) => s.trialKey === (trials.items?.[0]?.key ?? 'CTR-TEST')),
+    `items=${savedList.items?.length}`)
+  const noProfileSaved = await fetch(`${base}/api/aml/saved-trials`)
+  record('H7h 收藏缺 profile 400', noProfileSaved.status === 400, `status=${noProfileSaved.status}`)
+
+  /* H8 通用记录写读（AI 写入契约面）：写 → 回读 → private 过滤 → 非法 kind 400 */
+  const recPost = await fetch(`${base}/api/aml/records/transfusion`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ profileId: 'demo1', event_date: '2026-10-25', component: 'PLATELET', units_text: '1 治疗量', reaction: '无' }),
+  })
+  const recBody = await recPost.json().catch(() => null)
+  record('H8 写 transfusion 200', recPost.status === 200 && recBody?.id > 0, JSON.stringify(recBody).slice(0, 140))
+  const recGet = await (await fetch(`${base}/api/aml/records/transfusion?profile=demo1`)).json()
+  record('H8b 回读有新写的输注', (recGet.items ?? []).some((x) => x.event_date === '2026-10-25' && x.component === 'PLATELET'),
+    `items=${recGet.items?.length}`)
+  const feelPost = await fetch(`${base}/api/aml/records/feeling`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ profileId: 'demo1', logged_at: '2026-10-26T21:30', kind_in: 'DEATH_PREP', content: 'M5 探针私密句：试着安排好家里的相册' }),
+  })
+  const feelBody = await feelPost.json().catch(() => null)
+  record('H8c 写 feeling 200 且默认 private（K6）', feelPost.status === 200 && feelBody?.visibility === 'private',
+    JSON.stringify(feelBody).slice(0, 140))
+  const feelGet = await (await fetch(`${base}/api/aml/records/feeling?profile=demo1`)).json()
+  record('H8d feeling 默认过滤 private', !(feelGet.items ?? []).some((x) => x.content?.includes('相册')),
+    `items=${feelGet.items?.length}`)
+  const feelFull = await (await fetch(`${base}/api/aml/records/feeling?profile=demo1&private=1`)).json()
+  record('H8e ?private=1 才给原文', (feelFull.items ?? []).some((x) => x.content?.includes('相册')),
+    `items=${feelFull.items?.length}`)
+  const badKind = await fetch(`${base}/api/aml/records/nope`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ profileId: 'demo1' }),
+  })
+  const badKindBody = await badKind.json().catch(() => null)
+  record('H8f 非法 kind 400 JSON', badKind.status === 400 && badKindBody?.error === 'BAD_KIND', `status=${badKind.status}`)
+  const badKindGet = await fetch(`${base}/api/aml/records/nope?profile=demo1`)
+  record('H8g 非法 kind GET 也 400', badKindGet.status === 400, `status=${badKindGet.status}`)
+  const missField = await fetch(`${base}/api/aml/records/question`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ profileId: 'demo1', kind_in: 'fact' }),
+  })
+  record('H8h 缺必填列 400', missField.status === 400, `status=${missField.status}`)
 }
 
 try {

@@ -20,7 +20,7 @@
  */
 import Schema from '@deepseek-ai/schemastery'
 import { readFileSync } from 'node:fs'
-import { openDatabase, migrate, close, appendTemperature } from './store.js'
+import { appendSavedTrial, appendTemperature, close, insertRecord, listRecords, listSavedTrials, migrate, openDatabase, readTrialSnapshot, RECORD_KINDS } from './store.js'
 import { seedDemo, hasDemoData } from './demo.js'
 import { bootstrap, getProfile, listProfiles } from './readmodels.js'
 import { servePublic } from './server.js'
@@ -68,11 +68,24 @@ function openDataSource(root) {
     db,
     mode,
     root: dir,
-    bootstrap: () => ({ ...bootstrap(db, { version, build }), source: { mode, root: dir } }),
+    bootstrap: () => ({
+      ...bootstrap(db, { version, build }),
+      capabilities: [
+        'bootstrap', 'profile', 'temperature', 'export', 'import', 'candidate', 'parse', 'mineru-settings',
+        'trials.read', 'saved-trials.write', 'records.write', 'records.read',
+        ...Object.keys(RECORD_KINDS).map((k) => `records.${k}`),
+      ],
+      source: { mode, root: dir },
+    }),
     profile: (key, opts) => getProfile(db, key, opts),
     listProfiles: () => listProfiles(db),
     addTemperature: (input) => appendTemperature(db, input),
     listTemperatures: (key, opts) => listTemperatures(db, key, opts),
+    listTrials: (params) => readTrialSnapshot(params),
+    addSavedTrial: (input) => appendSavedTrial(db, input),
+    listSavedTrials: (key) => listSavedTrials(db, key),
+    addRecord: (kind, input) => insertRecord(db, kind, input),
+    listRecords: (kind, key, opts) => ({ kind, profile: key, items: listRecords(db, kind, key, opts) }),
     close: () => close(db),
   }
 }

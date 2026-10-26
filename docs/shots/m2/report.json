@@ -1,5 +1,5 @@
 {
-  "screenshots": 58,
+  "screenshots": 62,
   "errors": [],
   "assertions": {
     "dayGrid_demo1_cells": 45,
@@ -27,7 +27,7 @@
     "ai_links_total": 1
   },
   "clickWalk": {
-    "pages": 58,
-    "clicks": 58
+    "pages": 62,
+    "clicks": 62
   }
 }

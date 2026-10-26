@@ -22,6 +22,14 @@
 export const API_PREFIX = '/api/aml'
 export const UI_PREFIX = `${API_PREFIX}/ui`
 
+/** 能力契约面（0.4.0）：通用记录写读按 kind 逐个声明——这就是 AI 写入能力的白名单。 */
+export const CAPABILITIES = Object.freeze([
+  'bootstrap', 'profile', 'temperature', 'export', 'import', 'candidate', 'parse', 'mineru-settings',
+  'trials.read', 'saved-trials.write', 'records.write', 'records.read',
+  'records.transfusion', 'records.mucositis', 'records.marrow-procedure', 'records.feeling',
+  'records.question', 'records.intake', 'records.tx-day', 'records.document',
+])
+
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024
 const MAX_JSON_BYTES = 64 * 1024
 
@@ -52,7 +60,8 @@ function errorBody(error) {
   if (code === 'NOT_FOUND') return { status: 404, body: { error: 'not_found', message: error.message } }
   if (code === 'BAD_INPUT' || code === 'BAD_TIME' || code === 'BAD_VALUE' || code === 'BAD_AUTHOR'
     || code === 'BAD_SITE' || code === 'BAD_VISIBILITY' || code === 'PROFILE_NOT_FOUND'
-    || code === 'IMMUTABLE_FIELD' || code === 'NOT_VERSIONED') {
+    || code === 'PROFILE_REQUIRED' || code === 'IMMUTABLE_FIELD' || code === 'NOT_VERSIONED'
+    || code === 'BAD_KIND' || code === 'FIELD_REQUIRED') {
     return { status: 400, body: { error: code, message: error.message } }
   }
   if (code === 'NO_TOKEN' || code === 'UNAUTHORIZED' || code === 'BAD_SECRET_FILE') {
@@ -138,7 +147,7 @@ export function createApiHandler({ source, version, build, serveUi, failure = nu
         build,
         apiVersion: 'v1',
         ui: UI_PREFIX,
-        capabilities: ['bootstrap', 'profile', 'temperature', 'export', 'import', 'candidate', 'parse', 'mineru-settings'],
+        capabilities: [...CAPABILITIES],
         error: failure || undefined,
       })
     }
@@ -284,6 +293,53 @@ export function createApiHandler({ source, version, build, serveUi, failure = nu
             message: error.message,
           })
         }
+      }
+
+      /* 临床试验检索（35 号）：本机登记快照（只读），keyword/status/limit；
+         快照文件缺失返回 source:'missing' + 空列表，不抛错不编数据。 */
+      if (path === `${API_PREFIX}/trials`) {
+        if (req.method !== 'GET') return sendJson(res, 405, { error: 'method_not_allowed' })
+        if (typeof source.listTrials !== 'function') return sendJson(res, 501, { error: 'trials_read_unavailable' })
+        return sendJson(res, 200, source.listTrials({
+          keyword: url.searchParams.get('keyword') || '',
+          status: url.searchParams.get('status') || '',
+          limit: url.searchParams.get('limit') || 50,
+        }))
+      }
+
+      /* 试验收藏（35 号 §四：只落 saved_trial，不新增打分列）。 */
+      if (path === `${API_PREFIX}/saved-trials`) {
+        if (req.method === 'POST') {
+          if (typeof source.addSavedTrial !== 'function') return sendJson(res, 501, { error: 'saved_trials_write_unavailable' })
+          const body = await readJson(req)
+          return sendJson(res, 200, source.addSavedTrial({ profileId: body.profileId, trialKey: body.trialKey ?? body.key }))
+        }
+        if (req.method === 'GET') {
+          if (typeof source.listSavedTrials !== 'function') return sendJson(res, 501, { error: 'saved_trials_read_unavailable' })
+          const key = url.searchParams.get('profile') || null
+          if (!key) return sendJson(res, 400, { error: 'profile_required', message: '需要 ?profile=<档案 id>' })
+          return sendJson(res, 200, { profile: key, items: source.listSavedTrials(key) })
+        }
+        return sendJson(res, 405, { error: 'method_not_allowed' })
+      }
+
+      /* 通用记录写读（0.4.0）：kind 白名单在 store.js RECORD_KINDS（schema/0001 逐列）。
+         原生 Agent/会话与手工表单同一条写路径；非法 kind 是用户输入问题 → 400 JSON。 */
+      const recordsMatch = path.match(new RegExp(`^${API_PREFIX}/records/([a-z-]+)$`))
+      if (recordsMatch) {
+        const kind = recordsMatch[1]
+        if (req.method === 'POST') {
+          if (typeof source.addRecord !== 'function') return sendJson(res, 501, { error: 'records_write_unavailable' })
+          const body = await readJson(req)
+          return sendJson(res, 200, source.addRecord(kind, body))
+        }
+        if (req.method === 'GET') {
+          if (typeof source.listRecords !== 'function') return sendJson(res, 501, { error: 'records_read_unavailable' })
+          const key = url.searchParams.get('profile') || null
+          if (!key) return sendJson(res, 400, { error: 'profile_required', message: '需要 ?profile=<档案 id>' })
+          return sendJson(res, 200, source.listRecords(kind, key, { includePrivate: url.searchParams.get('private') === '1' }))
+        }
+        return sendJson(res, 405, { error: 'method_not_allowed' })
       }
 
       if (path === UI_PREFIX || path.startsWith(`${UI_PREFIX}/`)) {

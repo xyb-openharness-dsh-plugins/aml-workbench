@@ -14,7 +14,7 @@ import { argv, exit } from 'node:process'
 import { readFileSync } from 'node:fs'
 import { Workbench, validateWorkspacePath } from '../dsh/workbench.js'
 import { startWorkbenchServer } from '../dsh/server.js'
-import { openDatabase, migrate, close } from '../dsh/store.js'
+import { appendSavedTrial, close, insertRecord, listRecords, listSavedTrials, migrate, openDatabase, readTrialSnapshot } from '../dsh/store.js'
 import { hasDemoData, seedDemo } from '../dsh/demo.js'
 import { bootstrap, getProfile } from '../dsh/readmodels.js'
 import { appendTemperature } from '../dsh/store.js'
@@ -68,6 +68,13 @@ async function main() {
     saveExport: () => { throw new Error('内存演示库没有资料目录：用 --workspace 指定目录后再导出落盘') },
     addTemperature: (input) => appendTemperature(db, input),
     listTemperatures: (key, opts) => describeReadings(db, key, opts),
+    /* 0.4.0 反馈 3/4：检索快照、收藏、通用写——内存库与 workspace 两条形态能力一致，
+       否则独立启动的联调/探针与装进 Desktop 行为分叉（0.4.0 轮真实踩过：500 records_write）。 */
+    listTrials: (params = {}) => readTrialSnapshot(params),
+    addSavedTrial: (input) => appendSavedTrial(db, input),
+    listSavedTrials: (key) => listSavedTrials(db, key),
+    addRecord: (kind, input) => insertRecord(db, kind, input),
+    listRecords: (kind, key, opts = {}) => ({ kind, profile: key, items: listRecords(db, kind, key, opts) }),
     close: () => close(db),
   }
   const started = await startWorkbenchServer({ port, workbench })

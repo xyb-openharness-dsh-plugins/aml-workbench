@@ -21,8 +21,8 @@
  * - mind（K6）：feeling_note 按 kind 分节（FEEL / DEATH_PREP / BURDEN），
  *   private 默认过滤并给 privateCount（三出口共用同一过滤）。
  * - docs：materials（document 表）+ questions（question 表）+ trials（saved_trial 只登记，
- *   条目正文来自叙述层）。试验线本期**只登记信息**：字段命名不出现 eligible /
- *   suitability / 匹配度，也不提供任何排序或打分。
+ *   条目正文来自叙述层）。试验条目本体与匹配在临床研究线（GET /api/aml/trials + 35 号读模型）：
+ *   这里只保留收藏登记，不提供任何打分或排序。
  *
  * 排序纪律：所有列表显式 ORDER BY（ord/rowid 或 measured_at），不依赖默认返回序。
  * 显式 null：原型里没有的字段读出来就缺省，不猜默认值。
@@ -417,8 +417,8 @@ function readDocs(db, key, pres, pendingCandidates) {
   const questions = rows(db, `SELECT * FROM question WHERE profile_id = ? ORDER BY ord, rowid`, key)
     .map((q) => ({ text: q.content, asked: q.asked_on !== null, src: q.from_scenario }))
 
-  /* 试验线索：saved_trial 只登记 key（表里没有条目正文）；正文来自叙述层。
-     本期不实现 35 号匹配——返回里没有 eligible / suitability / 匹配度 / 评分。 */
+  /* 试验线索：saved_trial 只登记 key（表里没有条目正文）；条目正文来自临床研究线
+     （GET /api/aml/trials，35 号 v2）。这里不做匹配，也不做打分或排序。 */
   const saved = new Set(rows(db, 'SELECT trial_key FROM saved_trial WHERE profile_id = ?', key).map((r) => r.trial_key))
   const trials = (dp.trials ?? []).filter((t) => saved.has(`${t.nct ?? 'NCT'}·${t.name ?? ''}`))
 
