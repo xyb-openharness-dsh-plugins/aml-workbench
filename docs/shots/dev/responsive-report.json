@@ -1,0 +1,626 @@
+{
+  "1300/dash": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1300/dx/dx-wk": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1300/tx/tx-cal": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1300/tx/tx-path": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1300/neu/neu-fever": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1300/neu/neu-tx": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1300/mrd/mrd-trend": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1300/tp/tp-day": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1300/tp/tp-eval": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1300/chart": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1300/care/care-safe": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1300/mind/mind-death": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1300/docs/docs-prep": {
+    "bodyScrollW": 1300,
+    "innerW": 1300,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/dash": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/dx/dx-wk": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/tx/tx-cal": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/tx/tx-path": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/neu/neu-fever": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/neu/neu-tx": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/mrd/mrd-trend": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/tp/tp-day": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/tp/tp-eval": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/chart": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/care/care-safe": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/mind/mind-death": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1180/docs/docs-prep": {
+    "bodyScrollW": 1180,
+    "innerW": 1180,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/dash": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/dx/dx-wk": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/tx/tx-cal": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/tx/tx-path": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/neu/neu-fever": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/neu/neu-tx": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/mrd/mrd-trend": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/tp/tp-day": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/tp/tp-eval": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/chart": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/care/care-safe": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/mind/mind-death": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "1000/docs/docs-prep": {
+    "bodyScrollW": 1000,
+    "innerW": 1000,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/dash": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/dx/dx-wk": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/tx/tx-cal": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/tx/tx-path": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/neu/neu-fever": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/neu/neu-tx": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/mrd/mrd-trend": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/tp/tp-day": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/tp/tp-eval": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/chart": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/care/care-safe": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/mind/mind-death": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "940/docs/docs-prep": {
+    "bodyScrollW": 940,
+    "innerW": 940,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/dash": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/dx/dx-wk": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/tx/tx-cal": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/tx/tx-path": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/neu/neu-fever": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/neu/neu-tx": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/mrd/mrd-trend": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/tp/tp-day": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/tp/tp-eval": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/chart": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/care/care-safe": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/mind/mind-death": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "900/docs/docs-prep": {
+    "bodyScrollW": 900,
+    "innerW": 900,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/dash": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/dx/dx-wk": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/tx/tx-cal": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/tx/tx-path": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/neu/neu-fever": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/neu/neu-tx": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/mrd/mrd-trend": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/tp/tp-day": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/tp/tp-eval": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/chart": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/care/care-safe": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/mind/mind-death": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "780/docs/docs-prep": {
+    "bodyScrollW": 780,
+    "innerW": 780,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/dash": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/dx/dx-wk": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/tx/tx-cal": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/tx/tx-path": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/neu/neu-fever": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/neu/neu-tx": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/mrd/mrd-trend": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/tp/tp-day": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/tp/tp-eval": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/chart": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/care/care-safe": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/mind/mind-death": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "700/docs/docs-prep": {
+    "bodyScrollW": 700,
+    "innerW": 700,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/dash": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/dx/dx-wk": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/tx/tx-cal": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/tx/tx-path": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/neu/neu-fever": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/neu/neu-tx": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/mrd/mrd-trend": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/tp/tp-day": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/tp/tp-eval": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/chart": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/care/care-safe": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/mind/mind-death": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  },
+  "600/docs/docs-prep": {
+    "bodyScrollW": 600,
+    "innerW": 600,
+    "vertical": [],
+    "clipped": []
+  }
+}

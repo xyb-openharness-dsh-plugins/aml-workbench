@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>小橙宝 OrangePal · 急性髓系白血病工作台原型 v0.2.0</title>
+<meta name="description" content="急性髓系白血病（AML）患者与照护者工作台交互原型：诱导日历按天、粒缺发热小时级轨道、MRD 双口径、移植评估、输注记录。演示数据，全部为模拟资料。">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">跳到主要内容</a>
+<div class="prototype-bar"><span><b>交互原型 v0.2.0</b> · 全部为模拟资料</span><span>仅本页演示 · 刷新重置 · 未接入 DSH / AI</span></div>
+<div class="workspace">
+  <aside class="sidebar" aria-label="小橙宝业务导航">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 48 48" width="48" height="48" aria-hidden="true"><rect x="4" y="4" width="40" height="40" rx="12" fill="#F8E9DD"/><circle cx="24" cy="27" r="13" fill="#C46A2B"/><circle cx="19.5" cy="22.5" r="3.2" fill="#E39A63" opacity=".85"/><path d="M24 14c1.8-3.4 4.6-4.8 7.2-4.4-0.8 3-3 5.2-6.4 5.8" fill="#5F8F5A"/><path d="M17.6 32.8c2 1.6 4.2 2.4 6.4 2.4s4.4-.8 6.4-2.4" stroke="#F8E9DD" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="38" cy="13" r="2.2" fill="#1F6E6B"/><circle cx="10" cy="35" r="1.6" fill="#1F6E6B"/></svg>
+    </span><div><strong>小橙宝</strong><span>OrangePal · aml</span></div></div>
+    <button class="profile profile-btn" id="profile-btn" data-action="profiles" aria-label="切换演示档案，当前为张强">
+      <div class="avatar" id="profile-avatar" aria-hidden="true">张</div>
+      <div><b id="profile-name">张强的资料</b><span id="profile-meta">47 岁 · AML 非APL · 巩固中</span></div>
+      <span class="profile-caret" aria-hidden="true">⌄</span>
+    </button>
+    <nav id="nav" aria-label="一级导航"></nav>
+    <div class="sidebar-bottom"><span class="eyebrow">小 X 宝家族</span><p>一步一记录，<br>急症期也不乱。</p><button class="text-button" data-action="help">原型操作说明 ↗</button></div>
+  </aside>
+  <div class="stage">
+    <div class="work-area">
+      <header class="topbar">
+        <div class="breadcrumb">小橙宝工作台 <span>/</span> <b id="breadcrumb">看板</b></div>
+        <div class="top-actions">
+          <button class="status" id="ready-store" data-action="open-store" aria-label="资料目录：已激活"><i></i><span>资料目录</span><b>已激活</b></button>
+          <button data-action="settings" aria-label="打开设置：工作区目录、文档解析、临床数据包">设置</button>
+          <button id="font-toggle" aria-pressed="false" title="切换大字">大字 Aa</button>
+          <button id="agent-toggle" data-action="agent-toggle" aria-expanded="false" aria-controls="agent-pane">AI 对话</button>
+          <button class="ver-chip" id="ver-chip" data-action="about" aria-label="关于小橙宝：查看版本号与构建信息">v0.2.0</button>
+          <button class="primer-btn" data-action="primer" aria-label="疾病概要：AML 是什么（解释不是判断）" title="疾病概要">?</button>
+        </div>
+      </header>
+      <main id="main" tabindex="-1"></main>
+      <footer class="footer">小橙宝 OrangePal · 与急性髓系白血病患者和照护者一起整理、记录、准备沟通 · 判读归血液科团队 <span class="ver-line"><b id="app-version">v0.2.0</b><em id="app-build">2026-10-25</em></span></footer>
+    </div>
+    <div id="agent-splitter" role="separator" aria-orientation="vertical" aria-label="调整 AI 对话面板宽度（左右方向键步进）" aria-valuemin="25" aria-valuemax="45" aria-valuenow="35" tabindex="0" hidden></div>
+    <aside id="agent-pane" aria-label="AI 对话面板" hidden>
+      <div class="agent-head">
+        <span id="agent-label" class="agent-label">AI 对话 · 演示</span>
+        <button id="agent-hide" class="icon-button" data-action="agent-hide" aria-label="收起 AI 对话">×</button>
+      </div>
+      <div class="agent-body">
+        <div class="notice plain">这是<b>演示面板</b>：原型未接入真实 AI。嵌入式（壳层 iframe）形态里，「AI 协助」会把预写提示词 + 已确认病情上下文<b>直接发送</b>到 AI 对话（aml:agent-draft · send:true，34 号契约）；AI 回复是<b>候选</b>，核对才采纳。</div>
+        <div class="agent-msg user"><b>演示输入</b><p>把这三程用药和体温变化排成一段话，复诊时照着说。</p></div>
+        <div class="agent-msg bot"><b>演示回复（未接通）</b><p>真实版本会在这里基于已核对记录生成草稿；本原型不生成内容。</p></div>
+        <p class="small-note">私密内容（visibility=private 的记录，含"对死亡的准备"）默认不进入 AI 上下文；需要带入时逐条显式勾选。</p>
+      </div>
+      <div class="agent-foot"><input placeholder="演示：未接入，输入不可用" disabled aria-label="演示输入框，未接入"></div>
+    </aside>
+  </div>
+</div>
+<dialog id="dialog" aria-labelledby="dialog-title">
+  <div class="dialog-head"><div><span class="eyebrow" id="dialog-eyebrow">小橙宝</span><h2 id="dialog-title"></h2></div><button class="icon-button" data-action="close" aria-label="关闭弹窗">×</button></div>
+  <div id="dialog-body" class="dialog-body"></div>
+  <div id="dialog-foot" class="dialog-foot"></div>
+</dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="demo-data.js"></script>
+<script src="app.js"></script>
+</body></html>

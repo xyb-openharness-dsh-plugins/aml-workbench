@@ -1,0 +1,33 @@
+{
+  "screenshots": 58,
+  "errors": [],
+  "assertions": {
+    "dayGrid_demo1_cells": 45,
+    "dayGrid_demo1_dn": 1,
+    "dayGrid_demo1_bands": 7,
+    "dayGrid_demo2_cells": 32,
+    "dayGrid_demo2_ven": 28,
+    "hourLane_demo2_svgs": 2,
+    "hourLane_demo2_reflines": 4,
+    "hourLane_demo2_feverdef": 1,
+    "hourLane_demo2_dual": 1,
+    "hourLane_demo1_svgs": 1,
+    "hourLane_demo1_reflines": 2,
+    "dayAxis_svg": 1,
+    "dayAxis_anchor": 1,
+    "dayAxis_day100": 1,
+    "dayAxis_milestones": 4,
+    "chart_root_class": 1,
+    "chart_computed_fill": "none",
+    "chart_lines": 4,
+    "fold_count": 5,
+    "fold_default_open": 0,
+    "fold_blocks": 5,
+    "export_buttons": 2,
+    "ai_links_total": 1
+  },
+  "clickWalk": {
+    "pages": 58,
+    "clicks": 58
+  }
+}

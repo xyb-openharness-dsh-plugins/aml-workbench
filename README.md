@@ -1,44 +1,65 @@
-# 急性髓系白血病患者工作台
+# 小橙宝 OrangePal · 急性髓系白血病（AML）工作台
 
-面向急性髓系白血病患者与照护者的本机病程资料、诱导化疗日历、粒缺发热轨道、MRD 趋势、移植评估、输注记录工作台设计项目
+一句话定位：与急性髓系白血病患者和照护者一起整理、记录、准备沟通——诱导日历按天、粒缺发热小时级轨道、MRD 双口径、移植评估、输注记录。
+**不做声明：不诊断 / 不建议 / 不判复发 / 移植零推荐 / 输注不判依赖；判读归血液科团队。**
 
-这是接入骨架，尚未实现真实业务。初始化后先将 [项目设计提示词](docs/DESIGN-PROMPT.md) 交给当前Agent；它应展示实际路径并以已有用户/场景/流程素材对齐设计者、研究与取舍原则。癌种项目另有 [完整专用提示词](prompts/NEW-CANCER-WORKBENCH.md)。需求见 [BRIEF](docs/BRIEF.md)，规格见 [SPEC](docs/SPEC.md)，任务见 [TASKS](docs/TASKS.md)；先读 [AGENTS](AGENTS.md)。CLI输出交接与首问，实际对话由Agent接续。
+当前状态：M2 交互原型 v0.2.0（10 线 27 页签 + 三新组件），数据为合成演示（`demo/build-demo-data.mjs` 唯一源），未接入 DSH / AI。初始化与脚手架说明见 `docs/DESIGN-PROMPT.md` / `docs/BRIEF.md`；需求见 `docs/DEV-REQUIREMENTS-2026-10-26.md`（K1–K6）。
 
-## 开发顺序
+## 关键功能（实渲截图 · 演示数据）
 
-先共创SPEC和候选数据关系，再交付HTML交互工作台；由用户确认对应版本/模块后，复核SCHEMA/API并实现生产功能。确认记录见docs/PROTOTYPE-REVIEW.md；模型不依赖前端Tab/流程。模板骨架不是业务已确认。
+**看板**——"现在到疗程第几天？今天注意什么？"：D+N 状态卡、粒缺期模式卡（ANC<0.5 自动出现）、最近血象、双主体入口与场景直达。
 
-## 当前能力
+![看板](docs/screenshots/readme-dashboard-v0.2.0.png)
 
-- 一个 DSH 工作台注册、认证的健康接口、版本展示与标准/大字切换。
-- 已明确选择布局：business-first。business-first 使用 customFrame；模板不创建会话或复制聊天。需要 AI 协助时按官方合同接入原生 conversation 和会话管理。
-- 无业务数据库、无演示患者、无真实密钥；所有业务页按确认 spec 逐项实现。
+**诱导日历（按天）**（AML 首创 dayGrid）——"7+3 到底怎么打的？为什么第 8 天反而最危险？"：D1–D42 每天一格，化疗打勾、谷值期带、骨穿窗口、当日体温/输注摘要；无记录显示灰格（允许"仅知月份"）。
 
-## 开发与本地验收
+![诱导日历按天](docs/screenshots/readme-daygrid-v0.2.0.png)
 
-需要 Node.js 22+、Git、包管理器和可用 DSH Desktop；采用 SQLite 时另核验 node:sqlite 版本条件。宿主 peers 的范围仅是模板基线，请与目标 Desktop 实际依赖核对。
+**粒缺发热轨道**（AML 首创 hourLane）——"半夜烧到 38.5 该怎么办？"：体温精确到小时、38.3/38.0 定义口径参考线、血培养双套与抗生素时点节点；定义原文常驻、急症提示不可忽略；照护者代记自动标注记录人（双源）。
+
+![粒缺发热轨道](docs/screenshots/readme-hourlane-v0.2.0.png)
+
+**Day+N 相对天数轴**——移植病友的通用语言：Day 0 回输锚点（未定时灰格占位、不造数）、植入 Day+14、Day+100 GVHD 观察节点。
+
+![Day+N 时间轴](docs/screenshots/readme-dayaxis-v0.2.0.png)
+
+**病情一图秀**——"变化发生在哪一步？"：ANC/PLT + 体重 + 同方法 MRD 放回同一段时间；疗程/粒缺发作/输注是分类节点只画节点不连线；月粒度轴不装小时（不跨尺度共轴）。
+
+![一图秀](docs/screenshots/readme-onechart-v0.2.0.png)
+
+**治疗路径折叠卡**——默认只显「阶段 · 日期 · 一句话概要」，点开五块细节（方案/指标/影像/副作用/支持）；打印时全部展开（beforeprint 实测，printToPDF 打印中 5 卡全开、打印后恢复）。
+
+![治疗路径折叠](docs/screenshots/readme-pathway-folded-v0.2.0.png)
+![治疗路径展开](docs/screenshots/readme-pathway-expanded-v0.2.0.png)
+
+**私密三出口**（红线页）——"对死亡的准备"默认私密：默认不进导出、不进看板摘要、不进 AI 上下文（同一个 sharedOnly 过滤函数贯穿三出口）。
+
+![私密三出口](docs/screenshots/readme-private-filter-v0.2.0.png)
+
+## 怎么用
+
+- **原型（设计态）**：双击打开 `prototypes/v0.2/index.html` 即可（file:// 零依赖）；顶部「?」打开疾病概要（36 号）。
+- **Desktop 装机（M6 后）**：本地 tgz 安装 / profile 内 `pnpm add @xyb-community/aml-workbench`；首次先新建会话。
+- **AI 协助（34 号契约）**：页面「AI 协助 ↗」是 `aml:agent-draft` 协议链接——嵌入式（壳层 iframe）形态把预写提示词 + 已确认病情上下文**直接发送**到 AI 对话开启互动；AI 回复是**候选**，核对才采纳、拒收零副作用；独立打开原型时走演示面板、不假装发送。
+
+## 数据与口径
+
+- 本机优先；演示数据为合成（人物、数值与时间线不指向任何真实患者）。
+- 试验条目取 2026 登记库样例（venetoclax / FLT3 / IDH），登记状态未核实——**线索不是推荐**。
+- 粒缺发热定义、预防用药、WHO 分级均为指南/院方语境原文引用；本台只展示不判定。
+- version：见 `VERSION` 与页面版本号（v0.2.0）。
+
+## 开发
 
 ```bash
-npm install
-npm run check
-npm run pack:check
-npm pack
+node demo/build-demo-data.mjs   # 演示数据唯一源 → prototypes/v0.2/demo-data.js + public 同步件
+npm run probe:resp              # 窄宽 8 档 × 13 页（含 dayGrid/hourLane）
+npm run probe:m2                # 37 路由 × 2 档案截图 + 三新组件 + computed fill=none 断言
+npm run check:hvt               # HVT X1–X4（覆盖/走通/编辑入口/候选闭环）
+npm run check:wording           # 禁词 0 + 必现句 12（红线文案必须上屏）
+npm run check                   # 装包合同链（原有）
 ```
 
-`npm run check` 只保证"能装"（语法 + 装包合同），第一天就该是绿的。`npm run audit` 管"还是不是家族里的一员"：版本三处一致、`lib/layout.js` 面板参数单一来源、检查链完整、文档与密钥卫生，**只看代码与文件，不看文档自述**。新项目刚生成时 audit 必然有 fail，那是待办清单；交付/发布前必须清零，存在 fail 不得发布（`npm run release:check` 一次跑完两者）。
+文档索引：`docs/DEV-REQUIREMENTS-2026-10-26.md`（K1–K6）· `docs/INTERACTION-DESIGN.md`（v1）· `docs/RESPONSIVE-RULES.md`（30 号）· `docs/33-README-SCREENSHOTS.md` · `docs/34-AGENT-DRAFT-SEND.md` · `docs/32-TREATMENT-PATHWAY-FOLDOUT.md` · `research-notes/family-landscape.md` §6（页面树唯一权威）。
 
-跑的时间点：**每次改完**跑 `check`；**G2 原型确认后、写业务代码前**先跑一次 `audit`（这时缺的多是 `lib/layout.js`、`VERSION` 这类结构，越早补越便宜）；**交付/装机前**必须跑 `release:check`；**发布或投稿前**把 `npm run audit --json` 的 `xx/xx 通过 · N 失败 · M 待人工` 抄进 `docs/RELEASE.md` 的「家族一致性」一行。`✗` 是结构缺口（补齐，或在 `docs/DEV-REQUIREMENTS-<日期>.md` 写明偏离理由并由用户确认），`!` 是需人工判断的项（逐条给「已人工确认 / 确实没有」）。
-
-`npm install` 可能按 npm 策略解析 peer；勿为消警告重复打包宿主 runtime。客户端本身是单文件；引入 TS/组件库后需添加构建步骤并保留单文件导出。
-
-本地安装入口以当前 Desktop/CLI 帮助为准。安装后按 [docs/06-VALIDATION-AND-RELEASE.md](docs/06-VALIDATION-AND-RELEASE.md) 与官方自测完成真实 UI 验收，并填写 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)。静态检查不代表已加载。
-
-Logo 来源与使用限制见 assets/README.md。许可证、作者、仓库/发布策略由本项目维护者确认后填写；模板默认为 private/UNLICENSED。
-
-感谢小x宝社区、DataElement 社区，以及 sam / hhx / 繁华的 ❤️ 贡献。
-
-初始化来源记录见 `.dsh-wb-starter.json`。更新社区脚手架不会覆盖本项目；需要升级时先用相同确认配置在临时目录生成，再审阅差异。CLI 用法见 [docs/CLI-GIT.md](docs/CLI-GIT.md)。
-
-## HTML先行与数据演进
-
-业务开发前先交付HTML交互工作台原型、实际预览并由用户确认版本/hash和范围。数据设计先区分领域事实、流程状态和页面读模型，走查前端/流程变化、兼容与迁移；原型对象不直接作为表。见[规范](docs/14-HTML-AND-DATA-CONTRACT.md)。
+初始化来源记录见 `.dsh-wb-starter.json`；Logo 来源见 `assets/README.md`；许可证 UNLICENSED（模板默认）。

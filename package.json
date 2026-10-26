@@ -1,6 +1,6 @@
 {
   "name": "@xyb-community/aml-workbench",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "面向急性髓系白血病患者与照护者的本机病程资料、诱导化疗日历、粒缺发热轨道、MRD 趋势、移植评估、输注记录工作台设计项目",
   "private": true,
   "type": "module",
@@ -34,7 +34,12 @@
     "probe:artifact": "node scripts/serve-artifact.mjs",
     "probe:tabs": "python3 scripts/verify-tabs-on-artifact.py",
     "probe:page-view": "node scripts/probe-page-view.mjs",
-    "probe:primer": "node scripts/probe-disease-primer.mjs"
+    "probe:primer": "node scripts/probe-disease-primer.mjs",
+    "sync:public": "node scripts/sync-public.mjs",
+    "probe:resp": "node scripts/probe-responsive.mjs",
+    "probe:m2": "node scripts/probe-aml-m2.mjs",
+    "check:hvt": "node scripts/check-hvt.mjs",
+    "check:wording": "node scripts/check-wording.mjs"
   },
   "dsh": {
     "bundle": {
