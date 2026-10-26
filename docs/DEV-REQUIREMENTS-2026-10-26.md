@@ -32,3 +32,5 @@ R1 dsh 七件套 + 真客户端链路；R2 schema 冻结（判读列断言）；
 - **G3（2026-10-26）**：schema/0001 冻结（30 表、判读列 0 命中、sha256 9322a908…99bbe），新增 `scripts/check-schema.mjs` 进 check 链；签认待补。
 - **M4 已完成（前置轮次）**：试验库 241 条（CDE 188 + CTV 53，六仓最多）；chictr/ictrp FAILED 如实记录。
 - **G1（2026-10-26）**：四个决策点按推荐项定稿（APL 另案 / MRD 双口径 / 病危记录 private 默认 / 儿童 AML 一期不做），详见 SPEC §G1 决议；用户未答 → 签认待补（可回退）。
+- **M5（2026-10-26）V1 通过**：七步移植 0.3.0；check 全绿 + 83/83 + audit 43/43（独立复跑）；public 与原型逐字符一致；4 个真缺陷自修（correctRecord 占位符/Hb 大写化趋势分叉/未归属体温读不出/apiBase 双前缀）。
+- **M6（2026-10-26）装机完成、V2/V3 待真机**：四要素 tgz 对照全过、profile 安装 + bundles 登记（37 项）；verify-desktop-load 显示 Desktop 未运行，待用户打开后新建会话走查。
