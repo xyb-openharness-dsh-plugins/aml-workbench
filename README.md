@@ -3,7 +3,7 @@
 一句话定位：与急性髓系白血病患者和照护者一起整理、记录、准备沟通——诱导日历按天、粒缺发热小时级轨道、MRD 双口径、移植评估、输注记录。
 **不做声明：不诊断 / 不建议 / 不判复发 / 移植零推荐 / 输注不判依赖；判读归血液科团队。**
 
-当前状态：M2 交互原型 v0.2.0（10 线 27 页签 + 三新组件），数据为合成演示（`demo/build-demo-data.mjs` 唯一源），未接入 DSH / AI。初始化与脚手架说明见 `docs/DESIGN-PROMPT.md` / `docs/BRIEF.md`；需求见 `docs/DEV-REQUIREMENTS-2026-10-26.md`（K1–K6）。
+当前状态：M5 开发版 v0.3.0（10 线 27 页签 + 三新组件 + 本机 sqlite 事实层 + MinerU 六部件 + 宿主接线），数据为合成演示（`demo/build-demo-data.mjs` 唯一源），AI 走宿主原生会话（34 号一键发送）。**未装机验证**：本版本只做到 dev-server 实测（`npm run probe:m5`），装进 DSH Desktop 的确认另计。初始化与脚手架说明见 `docs/DESIGN-PROMPT.md` / `docs/BRIEF.md`；需求见 `docs/DEV-REQUIREMENTS-2026-10-26.md`（K1–K6）。
 
 ## 疾病概要
 
@@ -102,8 +102,9 @@
 
 ## 怎么用
 
-- **原型（设计态）**：双击打开 `prototypes/v0.2/index.html` 即可（file:// 零依赖）；顶部「?」打开疾病概要（36 号）。
-- **Desktop 装机（M6 后）**：本地 tgz 安装 / profile 内 `pnpm add @xyb-community/aml-workbench`；首次先新建会话。
+- **开发版（本机服务，M5 起）**：`npm start` 起 `http://127.0.0.1:4173/api/aml/ui/`。默认用内存演示库（不落盘）；要落盘就用 `npm start -- --workspace ~/Documents/amlpal`（目录必须由你选，主目录 / 桌面 / 下载根与 /tmp 会被拒）。数据落在 `<目录>/amlpal.sqlite`，卸载不删。
+- **原型（设计态）**：双击打开 `prototypes/v0.2/index.html` 即可（file:// 零依赖）；顶部「?」打开疾病概要（36 号）。`public/` 与原型**逐字符一致**（`npm run sync:public` 只做复制）——数据层（先向 `/api/aml/bootstrap` 要本机数据、拿不到才回退 `DEMO_DATA`）写在原型里，因为它同时也是双击打开时的实现。
+- **Desktop 装机（M6 后）**：本地 tgz 安装 / profile 内 `pnpm add @xyb-community/aml-workbench`；首次先新建会话。`cordis.patch.yml` 已把 `config.root` 注入 `dshHomePath('aml-workbench')`，`dsh/index.js` 真的读它（库里没档案才播种演示数据）。
 - **AI 协助（34 号契约）**：页面「AI 协助 ↗」是 `aml:agent-draft` 协议链接——嵌入式（壳层 iframe）形态把预写提示词 + 已确认病情上下文**直接发送**到 AI 对话开启互动；AI 回复是**候选**，核对才采纳、拒收零副作用；独立打开原型时走演示面板、不假装发送。
 
 ## 数据与口径
@@ -111,19 +112,29 @@
 - 本机优先；演示数据为合成（人物、数值与时间线不指向任何真实患者）。
 - 试验条目取 2026 登记库样例（venetoclax / FLT3 / IDH），登记状态未核实——**线索不是推荐**。
 - 粒缺发热定义、预防用药、WHO 分级均为指南/院方语境原文引用；本台只展示不判定。
-- version：见 `VERSION` 与页面版本号（v0.2.0）。
+- version：见 `VERSION` 与页面版本号（v0.3.0）；`lib/version.js` 由 `npm run build:version` 从 `VERSION` 生成，页面字面量由 `check-version-literal` 守住同源。
+- **温度判定不入库（K2）**：`temperature_reading` 只有读数与时间戳，读模型也不产「是否急症」字段；38.3℃ 单次 / 38.0℃ 持续>1h 由前端 `classifyTemp` 按定义原文分流，`scripts/check-fever-rule.mjs` 守这条。
+- **MRD 双口径（K3）**：`mrd_result.method ∈ {FLOW, PCR}` 分列返回，跨方法不合并、不换算；导出里两条警示（转阴≠治愈、阳性≠一定复发）常驻。
+- **移植零推荐（K4）/ 输注不判依赖（K5）**：库里没有推荐列与依赖列，字段命名也有测试守着（`test/demo-parity.test.mjs` ⑥）。
+- **私密三出口（K6）**：bootstrap / profile / 导出 / AI 上下文共用同一过滤；导出里写明「有意排除」而不是静默消失。
 
 ## 开发
 
 ```bash
-node demo/build-demo-data.mjs   # 演示数据唯一源 → prototypes/v0.2/demo-data.js + public 同步件
+npm start                       # 开发版（内存演示库）→ http://127.0.0.1:4173/api/aml/ui/
+npm start -- --workspace <目录>  # 落盘版：<目录>/amlpal.sqlite（卸载不删）
+node demo/build-demo-data.mjs   # 演示数据唯一源 → prototypes/v0.2/demo-data.js + public 同步件 + demo/demo-data.json + demo/demo-data.sqlite
+npm run build:client            # src/client.js → lib/client.js（宿主入口；占位符必须全替换）
+npm run sync:public             # prototypes/v0.2 → public/（逐字符复制，不打补丁）
+npm run probe:m5                # M5 验收探针：health / 六件齐 / 体温落盘 / private 三出口 / 交界守卫（21 条）
 npm run probe:resp              # 窄宽 8 档 × 13 页（含 dayGrid/hourLane）
 npm run probe:m2                # 37 路由 × 2 档案截图 + 三新组件 + computed fill=none 断言
 npm run check:hvt               # HVT X1–X4（覆盖/走通/编辑入口/候选闭环）
 npm run check:wording           # 禁词 0 + 必现句 12（红线文案必须上屏）
 npm run shots:readme            # 9 张 README 截图 + 14 条断言（33 号）
 npm run check:primer            # 疾病概要探针自检（必须报 3 条 FAIL，证明有牙齿）
-npm run check                   # 全链：装包合同 + 34 号 + 36 号 + 45 条静态断言 + 4 条单测
+npm test                        # 7 套 82 个用例：store / demo-parity / server / client / import-export / schema-freeze / mineru-wiring / pack-contents
+npm run check                   # 全链：构建产物同步 + 装包合同 + 宿主契约 + 34 号 + 36 号 + 静态断言 + 全部单测 + schema 冻结
 ```
 
 文档索引：`docs/DEV-REQUIREMENTS-2026-10-26.md`（K1–K6）· `docs/INTERACTION-DESIGN.md`（v1）· `docs/RESPONSIVE-RULES.md`（30 号）· `docs/33-README-SCREENSHOTS.md` · `docs/34-AGENT-DRAFT-SEND.md` · `docs/32-TREATMENT-PATHWAY-FOLDOUT.md` · `research-notes/family-landscape.md` §6（页面树唯一权威）。

@@ -24,7 +24,7 @@
  *  K3 MRD 双口径分列禁合并，不判复发；K4 移植零推荐、供者四类、医生答复原文；
  *  K5 输注成分分列、只做红细胞累计单位汇总（不判依赖）；K6 author_role 双源 + private 三出口。
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -802,15 +802,111 @@ function buildDemoProfiles() {
   return D;
 }
 
-/* ---- 产物写出：① 原型 file:// 用；② public 离线回退（同一份数据，33/34 号 public 同步纪律） ---- */
-const data = buildDemoProfiles();
-const banner = `/* 由 demo/build-demo-data.mjs 生成（勿手改）。合成演示数据：人物、数值与时间线不指向任何真实患者。 */\nwindow.DEMO_DATA = `;
-const tail = ';\n';
-mkdirSync(join(ROOT, 'prototypes', 'v0.2'), { recursive: true });
-mkdirSync(join(ROOT, 'public'), { recursive: true });
-const body = JSON.stringify(data, null, 2);
-writeFileSync(OUT, banner + body + tail);
-writeFileSync(OUT_PUBLIC, banner + body + tail);
-const kb = (n) => (n / 1024).toFixed(1) + ' KB';
-console.log(`demo-data built: ${kb(body.length + banner.length)} → ${join(ROOT, 'prototypes', 'v0.2', 'demo-data.js')} + public 同步件`);
-console.log(`profiles: ${data.profiles.map((p) => p.name).join(' / ')} · today=${data.meta.today}`);
+/* ---- 产物写出：① 原型 file:// 用；② public 离线回退（33/34 号 public 同步纪律）；
+        ③ M5 起再落两个开发版产物：demo/demo-data.json（播种输入）与 demo/demo-data.sqlite（演示库）。
+
+   为什么不把数据复制进播种层：原型才是唯一源（demo-parity 测试比对的就是"库里拼回来的
+   形状 === 原型形状"）。这里只做「求值 + 拆表」，数值一旦在这里多出一条，原型与开发版就各说一套。
+
+   三条纪律：
+   1. **本文件被 import 时不许写盘**（test/ 与 demo-parity 要 import loadDemoData/readDemoJson）。
+      所有写盘动作只在它是入口脚本时发生——顶层副作用会让跑一次单测就改掉原型文件。
+   2. 输出是确定的：同一份源码重复跑得到逐字节相同的 demo-data.js（--check 靠它比对）。
+   3. --check 不写盘，只比对；sqlite 在 --check 时只做"库能读出来且档案数对"的轻校验。
+
+   用法：
+     node demo/build-demo-data.mjs             全量生成（原型 + public + json + sqlite）
+     node demo/build-demo-data.mjs --check     只校验产物与源同步
+     node demo/build-demo-data.mjs --no-sqlite 跳过 sqlite（浏览器探针用，快） ---- */
+
+export const JSON_OUT = join(ROOT, 'demo', 'demo-data.json');
+export const DB_OUT = join(ROOT, 'demo', 'demo-data.sqlite');
+const DATA_OUT = OUT;
+const PUBLIC_OUT = OUT_PUBLIC;
+const BANNER = '/* 由 demo/build-demo-data.mjs 生成（勿手改）。合成演示数据：人物、数值与时间线不指向任何真实患者。 */\nwindow.DEMO_DATA = ';
+const TAIL = ';\n';
+
+/** 求值原型脚本取出 DEMO_DATA（文件头是 window.DEMO_DATA = ...，这里给一个假 window）。 */
+export function loadDemoData(file = DATA_OUT) {
+  const win = {};
+  // eslint-disable-next-line no-new-func
+  new Function('window', readFileSync(file, 'utf8'))(win);
+  const value = win.DEMO_DATA;
+  if (!value || !Array.isArray(value.profiles) || !value.profiles.length) {
+    throw new Error(`${file} 里没有可用的 DEMO_DATA.profiles`);
+  }
+  return value;
+}
+
+/** 读 demo/demo-data.json（播种输入；dsh/demo.js 与这里保持同一入口）。 */
+export function readDemoJson(file = JSON_OUT) {
+  return JSON.parse(readFileSync(file, 'utf8'));
+}
+
+/** 用同一份数据建一个演示库（覆盖写）。返回 { file, counts }。 */
+export async function buildSqlite(file = DB_OUT, payload = null) {
+  const { openDatabase, migrate, close } = await import('../dsh/store.js');
+  const { seedDemo } = await import('../dsh/demo.js');
+  const data = payload ?? loadDemoData();
+  for (const f of [file, `${file}-wal`, `${file}-shm`]) rmSync(f, { force: true });
+  const db = openDatabase(file);
+  try {
+    migrate(db);
+    const counts = seedDemo(db, data);
+    return { file, counts };
+  } finally {
+    close(db);
+  }
+}
+
+async function main(argv = process.argv.slice(2)) {
+  const checkOnly = argv.includes('--check');
+  const skipSqlite = argv.includes('--no-sqlite') && !checkOnly;
+
+  const data = buildDemoProfiles();
+  const body = JSON.stringify(data, null, 2);
+  const jsText = BANNER + body + TAIL;
+  const jsonText = `${JSON.stringify(data, null, 2)}\n`;
+
+  if (checkOnly) {
+    const problems = [];
+    for (const [file, label, want] of [
+      [DATA_OUT, 'prototypes/v0.2/demo-data.js', jsText],
+      [PUBLIC_OUT, 'public/demo-data.js', jsText],
+      [JSON_OUT, 'demo/demo-data.json', jsonText],
+    ]) {
+      if (!existsSync(file)) problems.push(`缺 ${label}`);
+      else if (readFileSync(file, 'utf8') !== want) problems.push(`${label} 与 demo/build-demo-data.mjs 不同步`);
+    }
+    if (!existsSync(DB_OUT)) problems.push('缺 demo/demo-data.sqlite（npm run build:demo 生成）');
+    if (problems.length) {
+      for (const p of problems) console.error(`✗ ${p}`);
+      return 1;
+    }
+    console.log('✓ demo 产物与唯一数据源同步（原型 + public + demo-data.json + demo-data.sqlite）');
+    return 0;
+  }
+
+  mkdirSync(join(ROOT, 'prototypes', 'v0.2'), { recursive: true });
+  mkdirSync(join(ROOT, 'public'), { recursive: true });
+  mkdirSync(join(ROOT, 'demo'), { recursive: true });
+  writeFileSync(DATA_OUT, jsText);
+  writeFileSync(PUBLIC_OUT, jsText);
+  writeFileSync(JSON_OUT, jsonText);
+  const kb = (n) => (n / 1024).toFixed(1) + ' KB';
+  console.log(`demo-data built: ${kb(jsText.length)} → ${DATA_OUT} + public 同步件 + demo/demo-data.json`);
+  console.log(`profiles: ${data.profiles.map((p) => p.name).join(' / ')} · today=${data.meta.today}`);
+
+  if (!skipSqlite) {
+    const built = await buildSqlite(DB_OUT, data);
+    const c = built.counts;
+    console.log(`demo sqlite: ${built.file}（${c.profiles} 档案 · ${c.points} 指标点 · ${c.temperatures} 条体温 · ${c.events} 条事件）`);
+  }
+  return 0;
+}
+
+const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedDirectly) {
+  const code = await main();
+  if (code !== 0) process.exit(code);
+}

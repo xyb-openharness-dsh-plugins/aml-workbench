@@ -1,5 +1,5 @@
 'use strict';
-/* 小橙宝 OrangePal v0.2.0 — 急性髓系白血病（AML）工作台交互原型。
+/* 小橙宝 OrangePal v0.3.0 — 急性髓系白血病（AML）工作台交互原型。
    所有数据来自 demo-data.js（demo/build-demo-data.mjs 唯一源，合成演示数据）；不读写真实文件、不调用模型或宿主 API。
    页面树唯一权威：research-notes/family-landscape.md §6.2/§6.3（10 一级 / 27 二级）。
    红线（DEV-REQUIREMENTS K1–K6）：
@@ -14,8 +14,8 @@
    三种时间粒度互不混轴（16 号合同补充断言）：月粒度=一图秀 / 天粒度=dayGrid / 小时粒度=hourLane。 */
 
 const APP_INFO = {
-  version: '0.2.0',
-  build: '2026-10-25',
+  version: '0.3.0',
+  build: '2026-10-26',
   channel: 'prototype',
   channelLabel: '交互原型 · 未接入 DSH / AI',
   brand: '小橙宝 OrangePal',
@@ -136,9 +136,64 @@ const state = {
     demo2: { temps: [], txf: [], oral: [], meals: [], io: [], feels: [], deaths: [], burdens: [], questions: null, docs: [], additions: {} }
   }
 };
-const DATA = typeof DEMO_DATA !== 'undefined' ? DEMO_DATA : { meta: {}, profiles: [] };
-const TODAY = DATA.meta?.today || '2026-10-25';
+/* ---------------- 数据层（原型 / 开发版同一份渲染代码） ----------------
+   两种情况共用这一个文件：
+   ① 双击 prototypes/v0.2/index.html（file://）：直接读 demo-data.js 里的 DEMO_DATA；
+   ② 由 dev-server 或 DSH 宿主从 /api/aml/ui/ 提供：先向 /api/aml/bootstrap 要本机库里的
+      真数据，拿不到（或库为空）才回退 window.DEMO_DATA。
+   public/ 与原型逐字符一致（scripts/sync-public.mjs 只做复制），所以这段必须写在原型里，
+   而不是构建时再打一遍补丁——两份渲染代码一分叉，parity 就没人守得住了。
+   三态：api（本机库）/ demo（离线演示，顶部条明说）/ empty（库通了但为空，显示空态，
+   不拿演示档案把空工作区填满——否则用户会以为数据被写进来了）。 */
+let DATA = typeof DEMO_DATA !== 'undefined' ? DEMO_DATA : { meta: {}, profiles: [] };
+let TODAY = DATA.meta?.today || '2026-10-25';
+let DATA_SOURCE = 'demo';
 const profile = () => DATA.profiles.find((p) => p.id === state.profileId) || DATA.profiles[0];
+/**
+ * 接口基址：由页面自身路径推出来，不写死主机与端口。
+ *   /api/aml/ui/  → /api/aml   （dev-server 与 DSH 宿主都是这个形态）
+ *   /api/aml/ui   → /api/aml   （少了尾斜杠）
+ *   file://...    → null       （双击原型：没有服务，直接读 DEMO_DATA）
+ * 注意它返回的**已经是** /api/aml 这个前缀，调用方只能接 `/bootstrap` 这样的后缀。
+ * 2026-10-26 M5 实测踩过：这里返回 /api/aml，调用方又拼了一遍 /api/aml/bootstrap，
+ * 请求打到 /api/aml/api/aml/bootstrap 上 404，页面静默退回演示数据——
+ * bootstrap 明明 200，界面却显示"离线演示数据"（探针已加断言守这条）。
+ */
+function apiBase() {
+  if (location.protocol === 'file:') return null;
+  const m = location.pathname.match(/^(.*)\/ui(?:\/|$)/);
+  if (!m) return '';
+  return m[1].replace(/\/$/, '');
+}
+async function loadBootstrap() {
+  const base = apiBase();
+  if (base === null) return 'demo';
+  try {
+    const res = await fetch(base + '/bootstrap', { headers: { accept: 'application/json' }, credentials: 'same-origin' });
+    if (!res.ok) return 'demo';
+    const data = await res.json();
+    if (!Array.isArray(data?.profiles) || !data.profiles.length) {
+      DATA = { profiles: [], meta: data?.meta ?? null };
+      TODAY = DATA.meta?.today || TODAY;
+      return 'empty';
+    }
+    DATA = data;
+    TODAY = DATA.meta?.today || TODAY;
+    return 'api';
+  } catch { return 'demo'; }
+}
+/** 顶部说明条随数据源改写（HTML 里的字面量是"原型"口径，装机版不能照抄）。 */
+function applySourceBanner() {
+  const bar = document.querySelector('.prototype-bar');
+  if (!bar) return;
+  if (DATA_SOURCE === 'api') {
+    bar.innerHTML = '<span><b>本机数据 v' + esc(APP_INFO.version) + '</b> · 数据只存在你选的资料目录</span><span>只整理不判定 · 判读归血液科团队</span>';
+  } else if (DATA_SOURCE === 'empty') {
+    bar.innerHTML = '<span><b>本机资料目录为空</b> · 界面显示空态（不拿演示档案填充）</span><span>只整理不判定 · 判读归血液科团队</span>';
+  } else {
+    bar.innerHTML = '<span><b>离线演示数据</b> · 未连上本机服务，以下内容不是你的资料</span><span>仅本页演示 · 刷新重置 · 未接入 AI</span>';
+  }
+}
 const mem = () => state.mem[state.profileId];
 const added = (k) => { const m = mem(); if (!m.additions[k]) m.additions[k] = []; return m.additions[k]; };
 const questions = () => { const m = mem(); if (!m.questions) m.questions = (profile().docs.questions || []).map((q) => ({ ...q })); return m.questions; };
@@ -1322,8 +1377,14 @@ window.addEventListener('hashchange', () => { applyHash(); render(); });
 window.addEventListener('popstate', () => { applyHash(); render(); });
 
 /* ---------------- boot ---------------- */
-applyHash();
-render();
-/* 34 号 2b：嵌入式启动即隐藏自有演示面板（不等用户点 toggle） */
-if (EMBEDDED()) setAgent(false);
-document.body.setAttribute('data-booted', '1');
+(async function boot() {
+  DATA_SOURCE = await loadBootstrap();
+  applySourceBanner();
+  /* 库里有档案但状态里没记住剖面：落到第一个档案，避免 profile() 拿到 undefined 后整页空白。 */
+  if (!DATA.profiles.some((p) => p.id === state.profileId) && DATA.profiles[0]) state.profileId = DATA.profiles[0].id;
+  applyHash();
+  render();
+  /* 34 号 2b：嵌入式启动即隐藏自有演示面板（不等用户点 toggle） */
+  if (EMBEDDED()) setAgent(false);
+  document.body.setAttribute('data-booted', '1');
+})();
