@@ -14,7 +14,7 @@
 }
 html { height: 100%; }
 body { margin: 0; height: 100%; background: var(--paper); color: var(--ink);
-  font: 15.5px/1.65 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font: 15px/1.65 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
   font-variant-numeric: tabular-nums; }
 body.large { font-size: 18.5px; }
 button, input, select { font: inherit; color: inherit; }
@@ -72,13 +72,13 @@ h1, h2, h3, h4 { line-height: 1.35; margin: 0; }
 .primer-btn { width: 36px; padding: 0; border-radius: 50%; background: var(--act-soft); border-color: var(--act-soft);
   color: var(--act-ink); font-weight: 700; }
 #main { flex: 1; overflow-y: auto; padding: 18px 18px 40px; min-width: 0; container-type: inline-size; }
-.footer { padding: 9px 18px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line);
+.footer { padding: 9px 18px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line);
   background: var(--surface); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .ver-line b { color: var(--ink); }
 .ver-line em { font-style: normal; margin-left: 8px; }
 
 /* ---------- 通用部件 ---------- */
-.eyebrow { display: block; font-size: 11.5px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+.eyebrow { display: block; font-size: 12.5px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
 .section-title { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin: 22px 0 10px; }
 .section-title h2 { font-size: 17px; }
 .section-title p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
@@ -160,10 +160,10 @@ td.small-note { white-space: normal; }
 .dg-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .dg-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; min-width: 0; }
 .dg-cell { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 6px 7px; min-height: 74px; min-width: 0; position: relative; overflow: hidden; }
-.dg-cell .dg-day { font-size: 11px; color: var(--muted); white-space: nowrap; }
-.dg-cell .dg-dn { display: inline-block; font-size: 10.5px; font-weight: 700; color: var(--org-ink); background: var(--org-soft); border-radius: 6px; padding: 0 5px; margin-left: 4px; }
+.dg-cell .dg-day { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.dg-cell .dg-dn { display: inline-block; font-size: 12.5px; font-weight: 700; color: var(--org-ink); background: var(--org-soft); border-radius: 6px; padding: 0 5px; margin-left: 4px; }
 .dg-cell .dg-marks { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
-.dg-mark { font-size: 10px; padding: 0 5px; border-radius: 5px; background: var(--act-soft); color: var(--act-ink); font-weight: 600; white-space: nowrap; }
+.dg-mark { font-size: 12px; padding: 0 5px; border-radius: 5px; background: var(--act-soft); color: var(--act-ink); font-weight: 600; white-space: nowrap; }
 .dg-mark.ven { background: var(--org-soft); color: var(--org-ink); }
 .dg-cell .dg-fever { margin-top: 4px; font-size: 10.5px; color: var(--red); font-weight: 700; white-space: normal; line-height: 1.3; }
 .dg-cell .dg-tx { margin-top: 3px; font-size: 10px; color: var(--act-ink); display: block; white-space: normal; }

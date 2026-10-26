@@ -170,7 +170,7 @@ function openModal(title, body, foot = '', eyebrowLabel = '小橙宝 · 交互�
   $('#dialog-body').innerHTML = body; $('#dialog-foot').innerHTML = foot || '<button data-action="close">关闭</button>';
   const dlg = $('#dialog'); if (!dlg.open) dlg.showModal();
 }
-function closeModal() { const dlg = $('#dialog'); if (dlg.open) dlg.close(); }
+function closeModal() { const dlg = $('#dialog'); delete dlg.dataset.emergency; if (dlg.open) dlg.close(); }
 const head = (title, desc, action = '', productId = '') => `<div class="head" ${productId ? `data-product="${esc(productId)}"` : ''}><h1>${esc(title)}</h1><p>${desc}</p>${action ? `<div class="actions" style="margin-top:9px">${action}</div>` : ''}</div>`;
 const section = (title, sub = '', extra = '') => `<div class="section-title"><div><h2>${esc(title)}</h2>${sub ? `<p>${sub}</p>` : ''}</div>${extra}</div>`;
 const pageId = () => (SUBPAGES[state.page] ? `${state.page}/${state.sub[state.page] || SUBPAGES[state.page][0][0]}` : state.page);
@@ -275,7 +275,7 @@ function chartSVG(t0, t1) {
   }) : [];
   const yOf = (s, v) => CY1 - (v - s.lo) / s.span * (CY1 - CY0);
   const grid = [0, 1, 2, 3, 4].map((i) => { const y = CY0 + i * (CY1 - CY0) / 4; return `<line class="grid" x1="${CX0}" x2="${CX1}" y1="${y}" y2="${y}"/>`; }).join('');
-  const strip = [];
+  const strip = []; const txDots = [];
   bands.forEach((b) => {
     if (b.kind === 'cycle') {
       const x = xOf(Date.parse(b.date), t0, t1).toFixed(1);
@@ -284,10 +284,19 @@ function chartSVG(t0, t1) {
       const x1 = Math.max(xOf(Date.parse(b.from), t0, t1), CX0), x2 = Math.min(xOf(Date.parse(b.to), t0, t1), CX1);
       strip.push(`<g><rect x="${x1.toFixed(1)}" y="${LANES.feverb}" width="${Math.max(x2 - x1, 7).toFixed(1)}" height="8" rx="4" fill="${b.color}" opacity=".24"/><text x="${(x1 + 1).toFixed(1)}" y="${(LANES.feverb - 4).toFixed(1)}" font-size="8.5" fill="${b.color}" font-weight="500">${esc(b.label)}</text></g>`);
     } else if (b.kind === 'tx') {
+      /* H-05：输注标签先只画点，标签统一在下方按 x 排序错行（避免"红细胞×1/血小板×1"叠成乱码） */
       const x = xOf(Date.parse(b.date), t0, t1).toFixed(1);
-      strip.push(`<g><circle cx="${x}" cy="${LANES.tx + 4.5}" r="3.2" fill="${b.color}"/><text x="${(+x + 6).toFixed(1)}" y="${LANES.tx + 13}" font-size="8" fill="${b.color}">${esc(b.label)}</text></g>`);
+      txDots.push({ x: +x, color: b.color, label: b.label });
+      strip.push(`<g><circle cx="${x}" cy="${LANES.tx + 4.5}" r="3.2" fill="${b.color}"><title>${esc(b.label)}</title></circle></g>`);
     }
   });
+  /* H-05：输注标签错行渲染（相邻 <34 单位则换行，两行循环） */
+  let txRow = 0, lastTxX = -Infinity;
+  for (const d of txDots.sort((a, b) => a.x - b.x)) {
+    if (d.x - lastTxX < 34) txRow = (txRow + 1) % 2; else txRow = 0;
+    lastTxX = d.x;
+    strip.push(`<text x="${(d.x + 5).toFixed(1)}" y="${LANES.tx + 15 + txRow * 10}" font-size="8" fill="${d.color}">${esc(d.label)}</text>`);
+  }
   const rowLabels = `<text x="6" y="${LANES.cycle + 7}" font-size="8.5" fill="#9a8f7e">疗程</text><text x="6" y="${LANES.feverb + 7}" font-size="8.5" fill="#9a8f7e">发作/输注</text>`;
   /* 末点标签三向避让 */
   const lastPos = series.map((s) => {
@@ -413,10 +422,21 @@ function hourLaneSVG(ep) {
   };
   const laneLine = `<line x1="${HLX0}" x2="${HLX1}" y1="${evY}" y2="${evY}" stroke="var(--line)" stroke-width="1.5"/>`;
   const laneLab = `<text class="tick" x="${HLX0 - 6}" y="${evY + 4}" text-anchor="end">事件</text>`;
-  const evs = ep.events.map((ev) => {
-    const x = xOfT(Date.parse(ev.ts)).toFixed(1);
+  /* H-02：事件标签避让——相邻 <22 单位的标签交替上下两行，避免时点叠印成黑块 */
+  const evSorted = [...ep.events].sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts));
+  let lastLabX = -Infinity, row = 0;
+  const evs = evSorted.map((ev) => {
+    const x = xOfT(Date.parse(ev.ts));
+    const xs = x.toFixed(1);
     const labWanted = ['antibiotic', 'culture'].includes(ev.kind);
-    return `<g>${shapes[ev.kind](+x)}${labWanted ? `<text class="evlab" x="${x}" y="${evY + 24}" text-anchor="middle" fill="#3A3229" font-weight="600">${esc(hm(ev.ts))}</text>` : ''}<title>${esc(`${ev.ts.replace('T', ' ')} · ${ev.text}${ev.note ? '（' + ev.note + '）' : ''}`)}</title></g>`;
+    let y = evY + 24, line = '';
+    if (labWanted) {
+      if (x - lastLabX < 22) { row = (row + 1) % 2; } else { row = 0; }
+      lastLabX = x;
+      y = evY + 24 + row * 13;
+      if (row === 1) line = `<line x1="${xs}" x2="${xs}" y1="${evY + 7}" y2="${y - 10}" stroke="#C9C1B4" stroke-width="1" stroke-dasharray="2 2"/>`;
+    }
+    return `<g>${line}${shapes[ev.kind](x)}${labWanted ? `<text class="evlab" x="${xs}" y="${y}" text-anchor="middle" fill="#3A3229" font-weight="600">${esc(hm(ev.ts))}</text>` : ''}<title>${esc(`${ev.ts.replace('T', ' ')} · ${ev.text}${ev.note ? '（' + ev.note + '）' : ''}`)}</title></g>`;
   }).join('');
   const authors = ep.temps.reduce((m, x) => { m[x.author] = (m[x.author] || 0) + 1; return m; }, {});
   const dual = Object.keys(authors).length > 1;
@@ -429,7 +449,17 @@ function hourLaneSVG(ep) {
 }
 function pageNeuFever() {
   const p = profile();
+  /* H-01：本次录入（mem().temps）要能看见——按时间落进对应 episode 窗口后并入，
+     否则"家属代记体温曲线"只能存不能看（DIFF-MATRIX §一"从第一天可用"不成立）。 */
+  const liveTemps = mem().temps || [];
   const eps = (p.neu.fever.episodes || []).map((ep) => {
+    const from = Date.parse(ep.from) - 2 * 3600000, to = Date.parse(ep.to) + 3 * 3600000;
+    const extra = liveTemps.filter((x) => { const t = Date.parse(x.ts); return t >= from && t <= to; });
+    if (extra.length) {
+      const seen = new Set((ep.temps || []).map((x) => x.ts + '|' + x.v));
+      const add = extra.filter((x) => !seen.has(x.ts + '|' + x.v));
+      if (add.length) ep = { ...ep, temps: [...(ep.temps || []), ...add].sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts)) };
+    }
     const evt = (ep.events || []).map((ev) => `<div class="hl-ev"><span class="t">${esc(ev.ts.replace('T', ' '))}</span><span class="k ${esc(ev.kind)}">${esc({ call: '按铃', culture: '血培养', antibiotic: '抗生素', escalate: '升阶梯', deescalate: '降阶梯' }[ev.kind] || ev.kind)}</span><span>${esc(ev.text)}${ev.note ? ` <span class="small-note">${esc(ev.note)}</span>` : ''}</span></div>`).join('');
     return `<div class="card" style="margin-bottom:14px">
       <div class="card-head"><div><h3 style="font-size:15.5px">${esc(ep.label)}</h3><p>${esc(ep.from.replace('T', ' '))} → ${esc(ep.to.replace('T', ' '))}</p></div>${pill('小时级粒度', 'red')}</div>
@@ -439,7 +469,7 @@ function pageNeuFever() {
     </div>`;
   }).join('');
   return `${head('粒缺发热轨道', '半夜烧到 38.5 该怎么办——这条轨道给出的是记录与流程事实：体温到小时、抗生素时点、血培养双套。它是急症不是记录项（K2）。', aiBtn('neu'), '粒缺发热轨道')}
-  <div class="hl-def"><b>粒缺发热定义（指南原文口径，常驻）：</b>${esc(DATA.meta.feverDef)}</div>
+  <div class="hl-def"><b>粒缺发热定义（指南原文口径，常驻）：</b>${esc(String(DATA.meta.feverDef || '').replace(/^粒缺发热定义（[^）]*）：\s*/, ''))}</div>
   <div class="notice warn" style="margin-bottom:14px"><b>急症提示（不可忽略关闭）：</b>${esc(DATA.meta.feverAlert)} <b>粒缺发热请按急症就医处理。</b></div>
   ${eps}
   <div class="notice plain" style="margin-bottom:12px">${esc(p.neu.fever.guardNote || '本轨道只记录与呈现，不指导用药。')}</div>
@@ -892,7 +922,10 @@ function openForm(title, fields, onSave, eyebrowLabel = '记录 · 演示（仅�
       if (f.required && !vals[f.key]) bad = bad || f.label;
     });
     if (bad) { toast(`先填：${bad}`); return; }
-    onSave(vals); closeModal();
+    /* K2/F-01：onSave 返回 true 表示它已接管弹窗（如弹了急症框），此时不得再 closeModal，
+       否则刚弹出的急症提示会被立即关掉——家属录 38.5℃ 将看不到任何提示。 */
+    const handled = onSave(vals);
+    if (handled !== true) closeModal();
   });
 }
 /* 粒缺发热判定（K2）。口径来自中国中性粒细胞缺乏伴发热指南（2020 年版）：
@@ -932,7 +965,12 @@ function feverFlag(ts, v, author, why) { /* K2：急症提示不可忽略关闭�
   <p style="margin:10px 0 0"><b>本次判定依据：</b>${esc(why || '')}</p>
   <p class="small-note" style="margin-top:8px">本台不指导用药；是否服用退烧药、何时赴院，按医护指示。粒缺发热请按急症就医处理。</p>`,
   `<button class="primary" id="fever-ack">我知道了——立即按铃/联系医护</button>`, '粒缺发热 · 急症提示（不可忽略）');
-  $('#fever-ack').addEventListener('click', () => { closeModal(); toast('已记录到发热轨道（演示，仅内存）'); render(); });
+  /* K2/F-02：急症框标记 + 拦截 Esc 与遮罩点击——唯一出口是 #fever-ack */
+  $('#dialog').dataset.emergency = '1';
+  $('#fever-ack').addEventListener('click', () => {
+    delete $('#dialog').dataset.emergency;
+    closeModal(); toast('已记录到发热轨道（演示，仅内存）'); render();
+  });
 }
 /* 注意：体温入列由调用方统一负责（mem().temps.push）。这里不再 push——
    否则同一次体温会进轨道两遍，体温曲线出现重复点、作者计数翻倍。 */
@@ -1116,9 +1154,16 @@ document.addEventListener('click', (e) => {
       const prior = mem().temps.slice();
       mem().temps.push({ ts, v: val, author: v.author });
       const verdict = classifyTemp(ts, val, prior);
-      if (verdict.level === 'fever') feverFlag(ts, val, v.author, verdict.why);
-      else if (verdict.level === 'watch') { toast(`${verdict.why}（已记录，观察中）`, { long: true }); render(); }
+      if (verdict.level === 'fever') {
+        /* K2/F-01：先关掉录入框，再弹急症框——保证急症提示是最后 showModal 的那个且留在屏幕上；
+           返回 true 告知 openForm 已接管弹窗（不得再 closeModal）。 */
+        closeModal();
+        feverFlag(ts, val, v.author, verdict.why);
+        return true;
+      }
+      if (verdict.level === 'watch') { toast(`${verdict.why}（已记录，观察中）`, { long: true }); render(); }
       else { toast(`已记录：${verdict.why}`, { long: true }); render(); }
+      return false;
     }, '体温连录 · author_role 贯穿');
     return;
   }
@@ -1248,7 +1293,15 @@ function openProfiles() {
     pane.style.width = next + '%'; spl.setAttribute('aria-valuenow', String(next));
   });
 })();
-$('#dialog').addEventListener('click', (e) => { if (e.target === $('#dialog')) closeModal(); });
+/* K2/F-02：急症框（dataset.emergency）不允许遮罩点击或 Esc 关闭——唯一出口是确认按钮 */
+$('#dialog').addEventListener('click', (e) => {
+  if (e.target !== $('#dialog')) return;
+  if ($('#dialog').dataset.emergency) { toast('这条提示需要你点「我知道了」确认'); return; }
+  closeModal();
+});
+$('#dialog').addEventListener('cancel', (e) => {
+  if ($('#dialog').dataset.emergency) { e.preventDefault(); toast('这条提示需要你点「我知道了」确认'); }
+});
 
 /* ---------------- 打印展开（32 号：beforeprint，Chrome printToPDF 实测修正） ---------------- */
 (function printExpandFoldouts() {

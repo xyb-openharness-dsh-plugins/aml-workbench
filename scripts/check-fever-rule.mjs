@@ -131,10 +131,28 @@ if (!fails.length) {
   }
 }
 
+/* 源码级断言（2026-10-26 独立评审 F-01/F-02 回收）：
+   判定对 ≠ 提示可见。初版 `onSave(vals); closeModal();` 会把刚弹出的急症框立刻关掉，
+   且急症框可被 Esc / 遮罩关闭——纯函数用例一条都抓不到。这里对源码做结构断言。 */
+{
+  const guards = [
+    ['F-01 弹窗接管', /const handled = onSave\(vals\)[\s\S]{0,120}if \(handled !== true\) closeModal\(\)/],
+    ['F-01 体温分支先关录入框再弹急症', /if \(verdict\.level === 'fever'\) \{[\s\S]{0,200}closeModal\(\)[\s\S]{0,120}feverFlag\([\s\S]{0,80}return true/],
+    ['F-02 急症框打标记', /\$\('#dialog'\)\.dataset\.emergency = '1'/],
+    ['F-02 拦截 cancel（Esc）', /addEventListener\('cancel'[\s\S]{0,160}dataset\.emergency[\s\S]{0,80}preventDefault/],
+    ['F-02 拦截遮罩点击', /dataset\.emergency\) \{ toast\(/],
+    ['H-01 代记体温并入轨道', /liveTemps[\s\S]{0,400}temps: \[\.\.\.\(ep\.temps/],
+  ]
+  for (const [name, re] of guards) {
+    if (re.test(src)) oks.push(name)
+    else fails.push(`源码断言缺失：${name}（急症提示可能在 UI 层丢失/可忽略关闭/代记不渲染）`)
+  }
+}
+
 if (fails.length) {
   console.error('✗ 粒缺发热判定断言失败：')
   for (const f of fails) console.error('  - ' + f)
   console.error(`  （通过 ${oks.length} 条）`)
   process.exit(1)
 }
-console.log(`✓ 粒缺发热判定：${oks.length}/${oks.length} 条用例通过（38.3 单次 / 38.0 持续>1h / 边界 / 无效值 + 元断言）`)
+console.log(`✓ 粒缺发热判定：${oks.length}/${oks.length} 条通过（38.3 单次 / 38.0 持续>1h / 边界 / 无效值 + 元断言 + F-01/F-02/H-01 源码守卫）`)
