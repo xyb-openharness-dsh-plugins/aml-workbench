@@ -6,6 +6,7 @@
 <title>小橙宝 OrangePal · 急性髓系白血病工作台原型 v0.2.0</title>
 <meta name="description" content="急性髓系白血病（AML）患者与照护者工作台交互原型：诱导日历按天、粒缺发热小时级轨道、MRD 双口径、移植评估、输注记录。演示数据，全部为模拟资料。">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="primer.css">
 </head>
 <body>
 <a class="skip" href="#main">跳到主要内容</a>
@@ -33,7 +34,7 @@
           <button id="font-toggle" aria-pressed="false" title="切换大字">大字 Aa</button>
           <button id="agent-toggle" data-action="agent-toggle" aria-expanded="false" aria-controls="agent-pane">AI 对话</button>
           <button class="ver-chip" id="ver-chip" data-action="about" aria-label="关于小橙宝：查看版本号与构建信息">v0.2.0</button>
-          <button class="primer-btn" data-action="primer" aria-label="疾病概要：AML 是什么（解释不是判断）" title="疾病概要">?</button>
+          <button class="primer-btn" data-primer-open aria-label="疾病概要：定义、医学资料与指南情况、治疗全景、发展趋势" title="疾病概要（整页）">?</button>
         </div>
       </header>
       <main id="main" tabindex="-1"></main>
@@ -62,5 +63,7 @@
 </dialog>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script src="demo-data.js"></script>
+<script src="primer-data.js"></script>
+<script src="primer.js"></script>
 <script src="app.js"></script>
 </body></html>

@@ -865,16 +865,17 @@ function pageDocsTrial() {
   <div class="actions" style="margin-top:12px">${go('看就诊准备 →', 'docs', 'docs-prep', 'soft', 'data-step="to-docs-prep2"')}${go('回到看板', 'dash', '', 'linkish')}</div>`;
 }
 
-/* ---------------- 疾病概要（36 号「?」入口） ---------------- */
+/* ---------------- 疾病概要（36 号「?」入口） ----------------
+   形态是整页视图（32 号），不是弹窗：四段内容必然超过 1.5 屏。
+   实现走 primer.js（window.DiseasePrimer），数据在 primer-data.js（window.DISEASE_PRIMER），
+   与 README 的「## 疾病概要」四段同源。这里只保留一个兜底：
+   若 primer.js 未加载（例如开发版只同步了业务四件套），提示而非静默失效。 */
 function openPrimer() {
-  openModal('疾病概要：AML 是什么（解释不是判断）', `
-    <div class="notice plain" style="margin-bottom:10px">本概要只解释名词与结构，不对你的病情下任何结论；治疗决定归你的血液科团队。</div>
-    <p><b>急性髓系白血病（AML）</b>：骨髓里负责造粒细胞的"工厂"出了问题，异常细胞（原始细胞）快速增殖、挤占正常造血——所以表现为贫血（乏力）、血小板低（出血点/牙龈渗血）、白细胞异常。</p>
-    <p><b>四大检查</b>：形态学（当天）、流式免疫分型（2–3 天）、染色体核型（3–7 天）、分子基因（3–7 天，NGS 1–2 周）。</p>
-    <p><b>7+3</b>：阿糖胞苷连输 7 天 + 蒽环类 3 天。先打"骨架方案"，基因结果出来再调方向。</p>
-    <p><b>粒缺发热</b>：${esc(DATA.meta.feverDef)}——急症，按铃。</p>
-    <p><b>MRD</b>：更灵敏手段查到的残留白血病细胞；流式与 PCR 两套口径不可换算。</p>
-    <p><b>移植</b>：以风险换治愈机会的选择；评估、供者、Day+N 见「移植」线。</p>`, '<button data-action="close">我知道了</button>', '疾病概要 · 36 号');
+  if (window.DiseasePrimer && typeof window.DiseasePrimer.open === 'function') {
+    window.DiseasePrimer.open(document.querySelector('[data-primer-open]'));
+    return;
+  }
+  toast('疾病概要页未加载（primer.js / primer-data.js 缺失）——这不是内容为空，是文件没同步');
 }
 
 /* ---------------- 表单（每页显式编辑入口 ≤1；每表单 ≤6 字段） ---------------- */
@@ -950,11 +951,23 @@ function sendAgentDraft(prompt) {
 }
 
 /* ---------------- AI 面板 ---------------- */
+/* 34 号契约 2b「面板唯一性」：嵌入式形态下原生会话才是唯一 AI 面板，
+   业务页自有的这个演示面板必须整体隐藏——否则装机后右侧会出现
+   「AI 对话 · 演示」与原生会话两个面板并存（肢端肥大症 0.2.0–0.2.3 真机实漏）。
+   门控放在这里而不是只在 toggle 动作里 no-op：任何路径（初始渲染/快捷键/状态恢复）
+   打开面板都会被同一个早退挡住。 */
 function setAgent(open) {
   state.agent.open = open;
   const pane = $('#agent-pane'), spl = $('#agent-splitter'), toggle = $('#agent-toggle');
   if (!pane) return;
+  if (EMBEDDED()) {
+    pane.hidden = true; spl.hidden = true;
+    if (toggle) toggle.hidden = true;
+    toggle?.setAttribute('aria-expanded', 'false');
+    return;
+  }
   pane.hidden = !open; spl.hidden = !open;
+  toggle?.removeAttribute('hidden');
   toggle.setAttribute('aria-expanded', String(open));
 }
 
@@ -1220,4 +1233,6 @@ window.addEventListener('popstate', () => { applyHash(); render(); });
 /* ---------------- boot ---------------- */
 applyHash();
 render();
+/* 34 号 2b：嵌入式启动即隐藏自有演示面板（不等用户点 toggle） */
+if (EMBEDDED()) setAgent(false);
 document.body.setAttribute('data-booted', '1');

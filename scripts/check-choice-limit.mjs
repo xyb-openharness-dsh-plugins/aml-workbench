@@ -98,14 +98,23 @@ function rejectBranch(lines, start) {
 
 /* 上限判断的常见写法：length >= N / length > N-1 / count === MAX */
 const LIMIT_RE = /\b(?:length|size|count|sel)\s*(?:>=|>|===|==)\s*(?:[\w.]*MAX\w*|\d+)/i
-/* 状态回滚动作：checkbox 回弹、重渲染、reset */
-const ROLLBACK_RE = /\b(?:checked\s*=\s*(?:false|!1)|\.checked\s*=\s*false|render\s*\(|reset\w*\s*\(|rollback|回弹|改回去)/i
+/* 状态回滚动作：
+   ① checkbox 回写——**两个方向都算**。上限拒绝把刚勾上的回弹成 false；
+      「至少留一个」拒绝把刚取消的改回 true。只认 false 会把这个分支判成没回滚（AML 实测误报）。
+   ② 重渲染 / reset / 显式回滚动词。 */
+const ROLLBACK_RE = /\b(?:\.?checked\s*=\s*(?:false|true|!1|!0)|render\s*\(|reset\w*\s*\(|rollback|回弹|改回去)/i
+/* 拒绝提示：分支里得真的"说了"才算拒绝分支。
+   没有 toast/alert 的 return 多半是别的东西——典型是路径构造
+   `if (coords.length === 1) return \`M x y\``（AML smoothPath 实测误报），
+   它压根不是控件状态闸门，不该进这个检查器。 */
+const REJECT_MSG_RE = /\b(?:toast|alert|notify|snackbar)\s*\(/
 
 const problems = []
 const suppressed = []
 
-for (const rel of files.sort()) {
-  const src = readFileSync(join(ROOT, rel), 'utf8')
+/** 纯分析：喂一个文件的文本，返回该文件的 problems / suppressed。自检与主流程共用。 */
+function analyze(rel, src) {
+  const out = { problems: [], suppressed: [] }
   const lines = src.split('\n')
   lines.forEach((line, i) => {
     if (!LIMIT_RE.test(line)) return
@@ -118,12 +127,43 @@ for (const rel of files.sort()) {
          回滚"看起来有"其实在拒绝路径上不可达。） */
     const { body, hasReject } = rejectBranch(lines, i)
     if (!hasReject) return
+    /* 没"说"就不是拒绝分支（排除路径构造、边界早退等非控件闸门） */
+    if (!REJECT_MSG_RE.test(body)) return
     if (ROLLBACK_RE.test(body)) {
-      suppressed.push(rel + ':' + (i + 1))
+      out.suppressed.push(rel + ':' + (i + 1))
       return
     }
-    problems.push(`${rel}:${i + 1} 数量上限分支既没有回滚 DOM 状态也没有重渲染：\n    ${line.trim()}\n    分支体：${body.trim().replace(/\n\s*/g, ' ').slice(0, 120)}\n    → 典型后果：toast 说"超了"，但 checkbox 已经勾上，界面显示 N+1 而数据只有 N（PF-ILD 2026-10-25 实测）`)
+    out.problems.push(`${rel}:${i + 1} 数量上限分支既没有回滚 DOM 状态也没有重渲染：\n    ${line.trim()}\n    分支体：${body.trim().replace(/\n\s*/g, ' ').slice(0, 120)}\n    → 典型后果：toast 说"超了"，但 checkbox 已经勾上，界面显示 N+1 而数据只有 N（PF-ILD 2026-10-25 实测）`)
   })
+  return out
+}
+
+/* 双形态回归：上限拒绝（回写 false）与下限拒绝（回写 true）都必须被判成"有回滚"；
+   只有真正"说了但没改"的分支才允许报警。检查器自己写错时，静态门禁会静默全绿——
+   和它要防的缺陷同类，所以检查器本身也带 fixture。 */
+if (args.includes('--self-test')) {
+  const FIXTURES = [
+    ['上限拒绝·回写 false（正确）', `if (el.checked) { if (arr.length >= 4) { el.checked = false; toast('最多 4 个'); return; } arr.push(c); }`, 0],
+    ['下限拒绝·回写 true（正确）', `else { if (arr.length === 1) { el.checked = true; toast('至少留一个'); return; } }`, 0],
+    ['上限拒绝·只说不改（缺陷）', `if (arr.length >= 4) { toast('最多 4 个'); return; }`, 1],
+    ['路径构造·非控件（不该命中）', `if (coords.length === 1) return \`M \${coords[0].x} \${coords[0].y}\`;`, 0],
+    ['渲染后重绘（正确）', `if (arr.length >= 4) { toast('最多 4 个'); return render(); }`, 0],
+  ];
+  let bad = 0;
+  for (const [name, src, want] of FIXTURES) {
+    const { problems: p } = analyze('<fixture>', src);
+    const ok = p.length === want;
+    if (!ok) bad++;
+    console.log(`${ok ? '✓' : '✗'} ${name}：期望 ${want} 条报警，实得 ${p.length}`);
+  }
+  console.log(bad ? `✗ 自检失败 ${bad}/${FIXTURES.length}` : `✓ 自检通过 ${FIXTURES.length}/${FIXTURES.length}（上限/下限/非控件三形态）`);
+  process.exit(bad ? 1 : 0);
+}
+
+for (const rel of files.sort()) {
+  const r = analyze(rel, readFileSync(join(ROOT, rel), 'utf8'))
+  problems.push(...r.problems)
+  suppressed.push(...r.suppressed)
 }
 
 if (problems.length) {

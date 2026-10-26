@@ -15,12 +15,14 @@
     "dsh",
     "lib",
     "assets",
+    "public",
+    "demo/build-demo-data.mjs",
     "cordis.patch.yml",
     "README.md",
     "NOTICE.md"
   ],
   "scripts": {
-    "check": "node --check dsh/index.js && node --check lib/client.js && node scripts/check-workbench-package.mjs . && node scripts/check-host-contract.mjs && node scripts/smoke-activate.mjs && node scripts/check-probe-coverage.mjs && node scripts/check-version-literal.mjs && node scripts/check-static-refs.mjs && node scripts/check-choice-limit.mjs && node scripts/check-assertion-strength.mjs && node scripts/check-derivative-leftovers.mjs .",
+    "check": "node --check dsh/index.js && node --check lib/client.js && node scripts/check-workbench-package.mjs . && node scripts/check-host-contract.mjs && node scripts/smoke-activate.mjs && node scripts/check-probe-coverage.mjs && node scripts/check-agent-draft-bridge.mjs . && node scripts/check-choice-limit.mjs --self-test && node scripts/check-choice-limit.mjs && AML_CHANNEL=prototype node scripts/build-version.mjs --check && node scripts/check-version-literal.mjs && node scripts/check-static-refs.mjs && node scripts/check-wording.mjs && node scripts/check-assertion-strength.mjs && node scripts/check-derivative-leftovers.mjs . && node --test test/*.test.mjs",
     "check:version-literal": "node scripts/check-version-literal.mjs",
     "check:host": "node scripts/check-host-contract.mjs",
     "check:static-refs": "node scripts/check-static-refs.mjs",
@@ -39,7 +41,12 @@
     "probe:resp": "node scripts/probe-responsive.mjs",
     "probe:m2": "node scripts/probe-aml-m2.mjs",
     "check:hvt": "node scripts/check-hvt.mjs",
-    "check:wording": "node scripts/check-wording.mjs"
+    "check:wording": "node scripts/check-wording.mjs",
+    "build:version": "AML_CHANNEL=prototype node scripts/build-version.mjs",
+    "check:version": "AML_CHANNEL=prototype node scripts/build-version.mjs --check",
+    "check:vendored": "node scripts/check-version-literal.mjs",
+    "check:primer": "node scripts/probe-disease-primer.mjs --self-test",
+    "shots:readme": "node scripts/shots-readme.mjs"
   },
   "dsh": {
     "bundle": {

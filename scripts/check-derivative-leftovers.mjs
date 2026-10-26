@@ -97,7 +97,13 @@ export function scanProject(root = process.cwd()) {
     if (existsSync(p)) files.push(p)
   }
   const hits = []
+  /* 排除检查器自身：它必须持有词表与脏样本夹具，否则无法自证有牙齿。
+     这不是放水——scanText 对其它文件照常生效，被排除的只是"词表的定义处"。
+     注意：root 可能是相对路径（.），walk() 产出的 f 也是相对的，比较前必须归一，
+     否则自排除静默失效——首次实现就踩了这条，37 处全是自己。 */
+  const selfPath = resolve(fileURLToPath(import.meta.url))
   for (const f of files) {
+    if (resolve(f) === selfPath) continue
     let text
     try { text = readFileSync(f, 'utf8') } catch { continue }
     hits.push(...scanText(text, relative(root, f)))
