@@ -34,3 +34,12 @@ R1 dsh 七件套 + 真客户端链路；R2 schema 冻结（判读列断言）；
 - **G1（2026-10-26）**：四个决策点按推荐项定稿（APL 另案 / MRD 双口径 / 病危记录 private 默认 / 儿童 AML 一期不做），详见 SPEC §G1 决议；用户未答 → 签认待补（可回退）。
 - **M5（2026-10-26）V1 通过**：七步移植 0.3.0；check 全绿 + 83/83 + audit 43/43（独立复跑）；public 与原型逐字符一致；4 个真缺陷自修（correctRecord 占位符/Hb 大写化趋势分叉/未归属体温读不出/apiBase 双前缀）。
 - **M6（2026-10-26）装机完成、V2/V3 待真机**：四要素 tgz 对照全过、profile 安装 + bundles 登记（37 项）；verify-desktop-load 显示 Desktop 未运行，待用户打开后新建会话走查。
+
+## 七、M9 经验收敛（2026-10-26）
+
+- 坑1（通用，已回流 starter LESSONS）：**判定对 ≠ 提示可见**——`onSave(vals); closeModal()` 把急症框一起关掉，38.5℃ 无提示；纯函数断言全绿。修法：onSave 可返回 true 接管弹窗 + 源码级守卫断言。
+- 坑2（通用，已回流）：**"不可忽略"必须写进事件拦截**——`<dialog>` 默认 Esc 可关、遮罩可关，全文件 cancel 监听 0 处。
+- 坑3（通用，已回流 + 已实现检查器）：**写入点必须配渲染断言**——`mem().txf/.oral` 只存不显，用户记了看不到。`check-render-after-write.mjs` 接入后立即抓到。
+- 坑4（项目）：版本字面量硬编码在原型 index.html 4 处 + APP_INFO——已改为 sync-public 按 VERSION 注入（唯一源）。
+- 坑5（项目）：check 链里 `build-client --check` 与版本字面量顺序耦合，升版后必须先 build-client 再查字面量——已由 check 链顺序保证。
+- 回流机制（本轮"下一轮直接受益"）：两个检查器 `check-dialog-handoff.mjs`、`check-render-after-write.mjs` 已进 starter templates 并随 init 下发，小橙宝仓已接入并抓到真缺陷。
