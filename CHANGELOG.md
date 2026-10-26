@@ -11,6 +11,13 @@ M2 交互原型（设计态，未接入 DSH / AI）。包版本 0.2.0。
 - **AI 协助（34 号）**：页面「AI 协助 ↗」为 `aml:agent-draft` 协议链接，嵌入式形态 `send:true` 直接发送。**修正面板唯一性缺陷**：`setAgent()` 原无嵌入式门控，装机后会出现「AI 对话 · 演示」与原生会话双面板并存。
 - **治疗路径折叠卡（32 号）**：默认只显「阶段 · 日期 · 一句话概要」，展开五块；打印走 `beforeprint` 全展开（`@media print` 对收起 `<details>` 无效）。
 - **检查链补强**：新增 `check-probe-coverage`（同时认数组式与对象式 ROUTES，区分全量/抽样探针）、`check-agent-draft-bridge`（含 A4 面板唯一性、壳层按阶段判定）、`check-choice-limit --self-test`（上限回写 false / 下限回写 true / 非控件三形态）、`build-version --check`（渠道随环境变量一致）。`check-choice-limit` 修正两处误判：只认 `checked=false` 会漏掉「至少留一个」的 `checked=true` 回写；把路径构造的 `length===1` 误当选择上限。
+- **M2 独立评审修正（3 P0 + 1 P1 + 1 P2，详见 `docs/M2-REVIEW-2026-10-26.md`）**：
+  · P0 骨穿复核带标在 D21–D28，但标签写「停化疗后 7–14 天」应为 D15–D22，且 D15 真有骨穿记录 → 改 D15–D22，新增 `check-calendar-consistency`（C1–C5）。
+  · P0 粒缺发热判定 `v>=38.3||v>=38.0` 等价于 `v>=38.0`，丢掉「持续>1h」条件，单次 38.1℃ 就弹急症 → 抽出 `classifyTemp` 三档判定，新增 `check-fever-rule`（9 用例 + 元断言）。
+  · P0 同一次体温被 push 两遍（曲线重复点 + 双主体计数翻倍）→ 入列统一由调用方负责。
+  · P1 primer/README 承诺「APL 单列成一条线」但未实现 → 改为如实写「APL 线尚未建立」。
+  · P2 供者页把「半相合已非常成熟」写成台方口吻 → 改为标明文献出处、只转述。
+- **新增 `check-private-exits`（隐私红线，10 条断言 + 反向对照）**：实测两个档案的私密正文在 AI 提示词 / 看板 / 给医生的摘要里均 0 泄漏；自存全量里必须能看到私密，否则「没泄漏」可能是假通过。
 - **README 截图脚本化**：`npm run shots:readme` 生成 9 张 1440 宽实渲截图（含 dayGrid / hourLane / Day+N / 一图秀 fill=none / 折叠卡收展 / 疾病概要整页），14 条断言随截图一起跑，不靠手截。
 
 ## 0.1.0 — 2026-10-25
