@@ -43,8 +43,14 @@ async function shot(name) {
 
 try {
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
-  await cdp.send('Page.navigate', { url: URL_APP });
-  await sleep(600);
+  /* 清缓存后再导航：file:// 页面在同一个 Chrome 用户目录里会被缓存，
+     改完 app.js 立刻重跑截图，可能截到**上一版**（2026-10-27 实测：
+     入口文案已改，截图仍是旧的 8 个 chip）。这类"截图比代码旧"的假通过
+     最难发现——截图看着正常，只是不是现在的样子。 */
+  await cdp.send('Network.enable', {});
+  await cdp.send('Network.clearBrowserCache', {});
+  await cdp.send('Page.navigate', { url: URL_APP + '?v=' + Date.now() });
+  await sleep(700);
   for (let i = 0; i < 50 && !(await cdp.eval("document.body.getAttribute('data-booted') === '1'")); i += 1) await sleep(120);
 
   /* 1 看板：D+N 状态卡 + 粒缺期模式卡 + 血象四卡 + 今天能做的一件事 */

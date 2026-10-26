@@ -591,10 +591,45 @@ function metricCard(code) {
 function pageDash() {
   const p = profile(); const d = p.dash;
   const all = allViewpoints();
-  const quickEntries = [
-    ['诱导日历', 'tx', 'tx-cal'], ['粒缺发热（按铃）', 'neu', 'neu-fever'], ['输注记录', 'neu', 'neu-tx'], ['MRD 双口径', 'mrd', 'mrd-trend'],
-    ['移植评估', 'tp', 'tp-eval'], ['体温代记（照护者）', 'neu', 'neu-fever'], ['心理与家庭', 'mind', 'mind-feel'], ['复诊准备', 'docs', 'docs-prep']
-  ].map(([label, pg, sb], i) => go(label, pg, sb, 'soft', `data-quick="${i}"`)).join('');
+  /* 「今天能做的一件事」= 动作，不是页签名。
+     初版是页签名的搬运（"诱导日历""MRD 双口径""移植评估"）——患者得先知道那个页是干什么的才敢点。
+     现在每条都写成"我今天会做的那件事"，并按双主体分组：
+     照护者夜里最常做的是记体温，患者本人更常看日历与复诊准备。
+     去重：初版的「粒缺发热（按铃）」与「体温代记（照护者）」指向同一页，已合并为一条。 */
+  const QUICK = {
+    patient: [
+      ['看今天打到第几天', 'tx', 'tx-cal'],
+      ['看看血象在回升吗', 'neu', 'neu-cbc'],
+      ['准备下次复诊要问什么', 'docs', 'docs-prep'],
+      ['记一句今天的心情', 'mind', 'mind-feel']
+    ],
+    caregiver: [
+      ['记一次体温（我代记）', 'neu', 'neu-fever'],
+      ['登记一次输血/输板', 'neu', 'neu-tx'],
+      ['看看他/她今天吃了多少', 'care', 'care-intake'],
+      ['查下次骨穿是什么时候', 'mrd', 'mrd-bm']
+    ],
+    /* 急症入口只留一条，且不重复指向已出现的页：
+       「发烧了该怎么办」是搜索型问题（患者此时不知道去哪个页），
+       落在粒缺发热轨道顶部的急症提示区，与照护者那条「记一次体温」目的不同——
+       一个是要处置，一个是要留记录。两条都指向同一页但入口语义不同，
+       所以标签必须说清差别，否则等于同一条写了两遍。 */
+    common: [
+      ['发烧了，先看这一步', 'fever-help', ''],
+      ['看整条病程画成一张图', 'chart', '']
+    ]
+  };
+  const quickRow = (title, hint, list, key) => `<div class="quick-group"><span class="eyebrow">${esc(title)}</span><p class="small-note" style="margin:2px 0 6px">${esc(hint)}</p>
+    <div class="chip-row">${list.map(([label, pg, sb], i) => (
+      /* pg 以 '-' 开头的是动作型入口（如 fever-help），走 btn() 而不是 go()——
+         它不跳页，直接开一个自助卡。这样"急症处置"与"记录数据"不会挤在同一个落点。 */
+      pg.startsWith('-') || /^[a-z]+-help$/.test(pg)
+        ? btn(label, pg, 'soft', `data-quick="${key}-${i}"`)
+        : go(label, pg, sb, 'soft', `data-quick="${key}-${i}"`)
+    )).join('')}</div></div>`;
+  const quickEntries = quickRow('我本人要做的事', '按你现在最可能想知道的顺序排：', QUICK.patient, 'p')
+    + quickRow('照护者要做的事', '粒缺期体温与输注多为代记，记录会自动标"照护者"。', QUICK.caregiver, 'c')
+    + quickRow('先别管是哪一类', '急的时候从这里点。', QUICK.common, 'x');
   const scenes = SCENES.map(([sid, label, pg, sb]) => go(`${sid} ${label}`, pg, sb, '', `data-scene="${sid}"`)).join('');
   return `${head(`看板 · ${p.name}`, p.stageLine, aiBtn('dash'), '看板')}
   <div class="hero" style="margin-bottom:12px">
@@ -608,7 +643,7 @@ function pageDash() {
   </div>
   ${section('最近血象与体重', '点卡片看口径与上次值；谷值常在停化疗后 7–14 天。', '')}
   <div class="metric-strip" style="margin-bottom:6px">${['ANC', 'PLT', 'Hb', 'WEIGHT'].map(metricCard).join('')}</div>
-  ${section('今天能做的一件事', '双主体各有一个入口：患者本人看趋势与复诊，照护者代记体温与用药。', '')}
+  ${section('今天能做的一件事', '按“谁在做什么”分三组：我本人的、照护者的、急的时候不管哪一类。每一条都是一个动作，不是一个页签名。', '')}
   <div class="chip-row">${quickEntries}</div>
   <div class="card" style="margin-top:12px"><span class="eyebrow">私密三出口（K6）</span><p style="font-size:13.5px;margin:6px 0 0">心理与家庭共 ${all.length} 条记录，其中私密 ${privateCount(all)} 条（含"对死亡的准备"${privateCount(deathsAll())} 条）。私密默认不进看板摘要、不进导出、不进 AI 上下文——三出口走同一个 sharedOnly 过滤函数。${go('去心理与家庭 →', 'mind', 'mind-feel', 'linkish', 'data-step="to-mind-dash"')}</p></div>
   ${section('场景直达（S01–S13）', '从患者的话出发：', aiBtn('dash', 'AI 摘要'))}
@@ -1293,6 +1328,19 @@ function classifyTemp(ts, v, priorTemps) {
   return { level: 'none', why: `${v.toFixed(1)}℃ 未达 ${FEVER_SUSTAINED}℃` };
 }
 
+/* 急症自助卡（不是记录动作）：只回答"现在要不要按铃"，并把定义原文与流程摆出来。
+   刻意不提供任何用药建议——文案里连"退烧药"三个字都不出现，避免被读成指导。 */
+function showFeverHelp() {
+  openModal('发烧了，先看这一步', `
+    <div class="hl-def"><b>粒缺发热定义（指南原文口径）：</b>${esc(String(DATA.meta.feverDef || '').replace(/^粒缺发热定义（[^）]*）：\s*/, ''))}</div>
+    <p style="margin:10px 0 0"><b>要不要按铃：</b>只要在粒缺期（ANC<0.5）且达到上面的温度条件，就按铃联系医护，不要等到第二天。</p>
+    <p class="small-note" style="margin-top:8px">${esc(DATA.meta.feverAlert)}</p>
+    <p class="small-note" style="margin-top:8px">本台不指导用药。是否服用任何药物、何时赴院，按医护指示。</p>`,
+    `<button class="primary" id="fever-help-ok">我知道了</button><button data-action="go" data-page="neu" data-sub="neu-fever">去记下这次体温 →</button>`,
+    '粒缺发热 · 急症自助（36 号同一套入口纪律）');
+  $('#fever-help-ok').addEventListener('click', () => closeModal());
+}
+
 function feverFlag(ts, v, author, why) { /* K2：急症提示不可忽略关闭——必须确认"按铃/联系医护"才能关 */
   openModal('这是急症信号', `<div class="hl-def"><b>≥38.3℃（或 ≥38.0℃ 持续>1h）+ ANC&lt;0.5 = 粒缺发热（定义原文口径）。</b><br><br>${esc(DATA.meta.feverAlert)}</div>
   <p style="margin:10px 0 0"><b>本次判定依据：</b>${esc(why || '')}</p>
@@ -1449,6 +1497,10 @@ document.addEventListener('click', (e) => {
   if (a === 'agent-toggle') { setAgent(!state.agent.open); return; }
   if (a === 'agent-hide') { setAgent(false); toast('已收起面板（会话保留，草稿不丢）'); return; }
   if (a === 'primer') { openPrimer(); return; }
+  /* 急症独立入口：患者问"发烧了该怎么办"时，第一步不是记数据，是先知道要不要按铃。
+     所以它是一个独立动作（直接弹急症卡），不是跳到粒缺发热页——
+     跳过去会落在"连录体温"按钮旁边，等于把"处置"和"记录"混成一步。 */
+  if (a === 'fever-help') { showFeverHelp(); return; }
   if (a === 'close') { closeModal(); return; }
   if (a === 'open-store') { toast('资料目录已激活（演示）'); return; }
   if (a === 'settings') { openModal('设置（演示）', '<p style="font-size:13.5px">原型不接真实设置；工作区目录 / 文档解析 / 临床数据包在正式版提供。</p><p class="small-note">演示数据来自 demo/build-demo-data.mjs（唯一源）。</p>'); return; }

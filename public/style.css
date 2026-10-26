@@ -133,6 +133,10 @@ td.small-note { white-space: normal; }
 .empty { padding: 40px 20px; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--line2); border-radius: var(--radius); }
 .stage-quote { border-left: 2px solid var(--org); padding: 3px 9px; margin: 6px 0; color: var(--muted); font-size: 12.5px; }
 .chip-row { display: flex; gap: 8px; flex-wrap: wrap; min-width: 0; }
+/* 「今天能做的一件事」按双主体分组：三组之间留出呼吸，组内仍是 chip 横排（30 号：窄宽自动换行） */
+.quick-group { margin-bottom: 12px; min-width: 0; }
+.quick-group:last-child { margin-bottom: 0; }
+.quick-group .eyebrow { display: block; margin-bottom: 2px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line2); background: var(--surface);
   border-radius: 999px; padding: 5px 13px; font-size: 13px; min-height: 34px; min-width: 0; }
 .chip b { color: var(--org-ink); }
