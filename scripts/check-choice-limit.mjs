@@ -50,7 +50,13 @@ function collect(dir, acc) {
 }
 const files = [...collect(join(ROOT, 'public'), new Set())]
 
-if (!files.length) {
+/* --self-test 必须在"没有 public/ 就跳过"之前处理：
+   自检用的是内置 fixture，与被检查项目有没有 public/ 无关。
+   顺序写反时，在脚手架仓里跑 --self-test 会直接输出"跳过"并 exit 0——
+   看起来像自检通过，其实一条用例都没跑（2026-10-26 实测踩到）。 */
+const SELF_TEST = args.includes('--self-test')
+
+if (!files.length && !SELF_TEST) {
   console.log('· 跳过：没有 public/ 下的 JS（原型阶段）。M5 移植出开发版后本闸门自动生效')
   process.exit(0)
 }
@@ -100,12 +106,13 @@ function rejectBranch(lines, start) {
 const LIMIT_RE = /\b(?:length|size|count|sel)\s*(?:>=|>|===|==)\s*(?:[\w.]*MAX\w*|\d+)/i
 /* 状态回滚动作：
    ① checkbox 回写——**两个方向都算**。上限拒绝把刚勾上的回弹成 false；
-      「至少留一个」拒绝把刚取消的改回 true。只认 false 会把这个分支判成没回滚（AML 实测误报）。
+      「至少留一个」拒绝把刚取消的改回 true。只认 false 会把下限分支判成没回滚
+      （2026-10-26 AML 实测误报：`el.checked = true` 明明就是回写）。
    ② 重渲染 / reset / 显式回滚动词。 */
 const ROLLBACK_RE = /\b(?:\.?checked\s*=\s*(?:false|true|!1|!0)|render\s*\(|reset\w*\s*\(|rollback|回弹|改回去)/i
 /* 拒绝提示：分支里得真的"说了"才算拒绝分支。
    没有 toast/alert 的 return 多半是别的东西——典型是路径构造
-   `if (coords.length === 1) return \`M x y\``（AML smoothPath 实测误报），
+   `if (coords.length === 1) return \`M x y\``（2026-10-26 AML smoothPath 实测误报），
    它压根不是控件状态闸门，不该进这个检查器。 */
 const REJECT_MSG_RE = /\b(?:toast|alert|notify|snackbar)\s*\(/
 
@@ -138,9 +145,10 @@ function analyze(rel, src) {
   return out
 }
 
-/* 双形态回归：上限拒绝（回写 false）与下限拒绝（回写 true）都必须被判成"有回滚"；
-   只有真正"说了但没改"的分支才允许报警。检查器自己写错时，静态门禁会静默全绿——
-   和它要防的缺陷同类，所以检查器本身也带 fixture。 */
+/* 双形态回归（2026-10-26 追加）：上限拒绝（回写 false）与下限拒绝（回写 true）都必须判成"有回滚"；
+   只有真正"说了但没改"的分支才允许报警。
+   检查器自己写错时，静态门禁会静默全绿——和它要防的缺陷同类，所以检查器本身也带 fixture。
+   用法：node scripts/check-choice-limit.mjs --self-test */
 if (args.includes('--self-test')) {
   const FIXTURES = [
     ['上限拒绝·回写 false（正确）', `if (el.checked) { if (arr.length >= 4) { el.checked = false; toast('最多 4 个'); return; } arr.push(c); }`, 0],
@@ -148,16 +156,16 @@ if (args.includes('--self-test')) {
     ['上限拒绝·只说不改（缺陷）', `if (arr.length >= 4) { toast('最多 4 个'); return; }`, 1],
     ['路径构造·非控件（不该命中）', `if (coords.length === 1) return \`M \${coords[0].x} \${coords[0].y}\`;`, 0],
     ['渲染后重绘（正确）', `if (arr.length >= 4) { toast('最多 4 个'); return render(); }`, 0],
-  ];
-  let bad = 0;
+  ]
+  let bad = 0
   for (const [name, src, want] of FIXTURES) {
-    const { problems: p } = analyze('<fixture>', src);
-    const ok = p.length === want;
-    if (!ok) bad++;
-    console.log(`${ok ? '✓' : '✗'} ${name}：期望 ${want} 条报警，实得 ${p.length}`);
+    const { problems: p } = analyze('<fixture>', src)
+    const ok = p.length === want
+    if (!ok) bad++
+    console.log(`${ok ? '✓' : '✗'} ${name}：期望 ${want} 条报警，实得 ${p.length}`)
   }
-  console.log(bad ? `✗ 自检失败 ${bad}/${FIXTURES.length}` : `✓ 自检通过 ${FIXTURES.length}/${FIXTURES.length}（上限/下限/非控件三形态）`);
-  process.exit(bad ? 1 : 0);
+  console.log(bad ? `✗ 自检失败 ${bad}/${FIXTURES.length}` : `✓ 自检通过 ${FIXTURES.length}/${FIXTURES.length}（上限/下限/非控件三形态）`)
+  process.exit(bad ? 1 : 0)
 }
 
 for (const rel of files.sort()) {
