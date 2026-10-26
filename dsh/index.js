@@ -11,7 +11,7 @@
  *
  * **config.root 必须真的被读到**（家族回收的装机坑：Config 声明了 root 但 apply 里没用，
  * 装机能打开、每次重启回到内存库，用户资料一条不剩）。所以这里把 config.root 透传进
- * openDataSource，并在 bootstrap 的 source 字段与 ctx.amlWorkbench 里回报实际数据源形态
+ * openDataSource，并在 bootstrap 的 source 字段里回报实际数据源形态
  * （memory / workspace），装机探针据此一眼看出"到底落在哪"。
  *
  * UI 走 iframe：业务界面（public/，由 scripts/sync-public.mjs 从 prototypes/v0.2 同步）
@@ -120,13 +120,8 @@ export function apply(ctx, config = {}) {
     }
   }, 'aml-workbench ui + api')
 
-  /* 数据源形态挂到 ctx 上，方便宿主侧诊断（不参与业务）。 */
-  ctx.amlWorkbench = {
-    version,
-    build,
-    mode: source?.mode ?? 'unavailable',
-    root: source?.root ?? null,
-    failure,
-    manifestVersion: manifest.version,
-  }
+  /* 数据源形态只通过 bootstrap 的 source 字段回报（见 routes.js）——
+     不要挂到 ctx 上：宿主 0.2.0-rc.2 要求 ctx 上的每个键都必须先在 provide 里声明，
+     否则 apply 抛 `cannot set property "amlWorkbench" without provide`，整个插件不激活。
+     （2026-10-26 真机回收：桩件烟测不校验 provide，所以本地全绿、装上去加载不起来。） */
 }

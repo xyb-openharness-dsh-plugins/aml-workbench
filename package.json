@@ -1,6 +1,6 @@
 {
   "name": "@xyb-community/aml-workbench",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "面向急性髓系白血病患者与照护者的本机病程资料、诱导化疗日历、粒缺发热轨道、MRD 趋势、移植评估、输注记录工作台设计项目",
   "private": true,
   "type": "module",
@@ -30,7 +30,7 @@
     "start": "node --disable-warning=ExperimentalWarning scripts/dev-server.mjs",
     "dev": "node --disable-warning=ExperimentalWarning scripts/dev-server.mjs",
     "test": "node --disable-warning=ExperimentalWarning --test test/*.test.mjs",
-    "check": "node scripts/build-version.mjs --check && node --disable-warning=ExperimentalWarning demo/build-demo-data.mjs --check && node scripts/build-client.mjs --check && node scripts/sync-public.mjs --check && node --check dsh/index.js && node --check lib/client.js && node --check public/app.js && node scripts/check-workbench-package.mjs . && node scripts/check-host-contract.mjs && node scripts/smoke-activate.mjs && node scripts/check-probe-coverage.mjs && node scripts/check-agent-draft-bridge.mjs . && node scripts/check-choice-limit.mjs --self-test && node scripts/check-choice-limit.mjs && node scripts/check-version-literal.mjs && node scripts/check-static-refs.mjs && node scripts/check-private-exits.mjs && node scripts/check-calendar-consistency.mjs && node scripts/check-medical-threshold.mjs && node scripts/check-fever-rule.mjs && node scripts/check-wording.mjs && node scripts/check-assertion-strength.mjs && node scripts/check-derivative-leftovers.mjs . && node --disable-warning=ExperimentalWarning --test test/*.test.mjs && node --disable-warning=ExperimentalWarning scripts/check-schema.mjs && node scripts/check-dialog-handoff.mjs . && node scripts/check-render-after-write.mjs .",
+    "check": "node scripts/build-version.mjs --check && node --disable-warning=ExperimentalWarning demo/build-demo-data.mjs --check && node scripts/build-client.mjs --check && node scripts/sync-public.mjs --check && node --check dsh/index.js && node --check lib/client.js && node --check public/app.js && node scripts/check-workbench-package.mjs . && node scripts/check-host-contract.mjs && node scripts/smoke-activate.mjs && node scripts/check-probe-coverage.mjs && node scripts/check-agent-draft-bridge.mjs . && node scripts/check-choice-limit.mjs --self-test && node scripts/check-choice-limit.mjs && node scripts/check-version-literal.mjs && node scripts/check-static-refs.mjs && node scripts/check-private-exits.mjs && node scripts/check-calendar-consistency.mjs && node scripts/check-medical-threshold.mjs && node scripts/check-fever-rule.mjs && node scripts/check-wording.mjs && node scripts/check-assertion-strength.mjs && node scripts/check-derivative-leftovers.mjs . && node --disable-warning=ExperimentalWarning --test test/*.test.mjs && node --disable-warning=ExperimentalWarning scripts/check-schema.mjs && node scripts/check-dialog-handoff.mjs . && node scripts/check-render-after-write.mjs . && node scripts/check-ctx-provide.mjs .",
     "check:version-literal": "node scripts/check-version-literal.mjs",
     "check:host": "node scripts/check-host-contract.mjs",
     "check:static-refs": "node scripts/check-static-refs.mjs",

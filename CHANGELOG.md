@@ -59,3 +59,11 @@ M5 七步移植（V1 通过：check 全绿 + 83/83 测试 + audit 43/43 独立�
 
 - 接手脚手架的 `check-render-after-write` 断言器后在**本仓抓到 3 个真缺陷**：`mem().txf`（输注）、`mem().oral`（黏膜炎）写入后无处渲染——用户记了却看不到。已修（输注/黏膜炎页并入本次登记并排序、累计值同源）。
 - 新增两个检查器进 check 链：`check-dialog-handoff`（onSave 再开弹窗必须 return true 接管；不可忽略框必须有 cancel/遮罩拦截）、`check-render-after-write`（每个 mem() 写入点都要有读取/渲染）。断言器支持聚合访问器（deathsAll/feelsAll/allTx）避免误报。
+
+## 0.3.2 — 2026-10-26
+
+**真机加载失败修复（用户报"工作台加载不起来"）**：宿主日志 `aml-workbench-main: Error: cannot set property "amlWorkbench" without provide`。
+- 根因：`dsh/index.js` 末尾把诊断信息挂到 `ctx.amlWorkbench`，但 `inject`/`provide` 未声明该键；宿主 0.2.0-rc.2 严格校验 ctx 写属性，整个插件不激活。
+- 修复：删除该 ctx 写（数据源形态本来已通过 `bootstrap.source` 字段回报，功能无损）。
+- 新增 `scripts/check-ctx-provide.mjs`（来自脚手架）：静态扫描 `ctx.<key> = …` 是否都在 `provide` 声明内；正负例实测。
+- 教训：**桩件烟测不校验 provide**——`smoke:activate` 全绿、真宿主挂。这类"只有真宿主才走到"的校验必须静态化。
