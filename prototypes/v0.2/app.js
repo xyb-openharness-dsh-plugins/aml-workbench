@@ -735,7 +735,7 @@ function pageTpEval() {
 }
 function pageTpDonor() {
   const p = profile(); const d = p.tp.donor;
-  return `${head('供者与配型记录', '四类供者（同胞全合 / 半相合 / 无关 / 脐血）+ HLA 相合度 + 检索与确认日期；"半相合在中国已非常成熟"是可引用出处，不是安慰话。', aiBtn('tp'), '供者与配型记录')}
+  return `${head('供者与配型记录', '四类供者（同胞全合 / 半相合 / 无关 / 脐血）+ HLA 相合度 + 检索与确认日期。半相合的可及性有文献出处（黄晓军团队单倍型移植综述，2019），本台只转述出处、不作安慰话。', aiBtn('tp'), '供者与配型记录')}
   <div class="grid grid-2" style="margin-bottom:12px">
     <div class="card"><span class="eyebrow">供者类型</span><div class="big" style="font-size:17px;margin:6px 0">${esc(d.type)}</div><div class="kv"><em>关系</em><span>${esc(d.rel)}</span><em>HLA 相合度</em><span>${esc(d.hla)}</span></div><p class="small-note" style="margin-top:8px">${esc(d.note || '')}</p></div>
     <div class="card"><span class="eyebrow">其他供者类型</span><p style="font-size:13.5px;margin:6px 0 0">${esc(d.otherTypes || '如涉及将逐类记录。')}</p><p class="small-note" style="margin-top:6px">配型流程：初诊/早期即对同胞及家属做 HLA 高分辨分型；无关供者检索周期数周–数月。</p></div>
@@ -895,13 +895,47 @@ function openForm(title, fields, onSave, eyebrowLabel = '记录 · 演示（仅�
     onSave(vals); closeModal();
   });
 }
-function feverFlag(ts, v, author) { /* K2：急症提示不可忽略关闭——必须确认"按铃/联系医护"才能关 */
+/* 粒缺发热判定（K2）。口径来自中国中性粒细胞缺乏伴发热指南（2020 年版）：
+     单次 ≥38.3℃ 即成立；
+     ≥38.0℃ 必须「持续超过 1 小时」才成立——单次 38.1℃ 不等于粒缺发热。
+   两个条件不能写成一个 `v >= 38.3 || v >= 38.0`：那在数学上等价于 `v >= 38.0`，
+   会让每一次 38.1℃ 都弹「这是急症信号」，把定义里的时长条件整个丢掉。
+   实现：38.0–38.2℃ 先按「观察」记录并提示复测；只有同一次发热事件里
+   存在 ≥1 小时的持续证据（相邻记录跨度 ≥60 分钟且都在 38.0 以上）才升级为急症。 */
+const FEVER_SINGLE = 38.3;
+const FEVER_SUSTAINED = 38.0;
+const FEVER_SUSTAINED_MS = 60 * 60 * 1000;
+
+/** 返回 { level: 'none' | 'watch' | 'fever', why } —— 只做记录分流，不做医疗建议。 */
+function classifyTemp(ts, v, priorTemps) {
+  if (!Number.isFinite(v)) return { level: 'none', why: '数值无效' };
+  if (v >= FEVER_SINGLE) {
+    return { level: 'fever', why: `单次 ${v.toFixed(1)}℃ ≥ ${FEVER_SINGLE}℃（定义口径：单次即成立）` };
+  }
+  if (v >= FEVER_SUSTAINED) {
+    /* 找同一次发热事件里更早的一条 ≥38.0 记录，看跨度是否已满 1 小时 */
+    const t = Date.parse(ts);
+    const since = (priorTemps || [])
+      .filter((x) => x.v >= FEVER_SUSTAINED && Date.parse(x.ts) <= t && t - Date.parse(x.ts) >= FEVER_SUSTAINED_MS)
+      .sort((a, b) => Date.parse(a.ts) - Date.parse(b.ts))[0];
+    if (since) {
+      const mins = Math.round((t - Date.parse(since.ts)) / 60000);
+      return { level: 'fever', why: `${FEVER_SUSTAINED}℃ 以上已持续 ${mins} 分钟（>1 小时，定义口径成立；自 ${since.ts.replace('T', ' ')} 起）` };
+    }
+    return { level: 'watch', why: `${v.toFixed(1)}℃ 未到单次 ${FEVER_SINGLE}℃ 线；定义要求 ${FEVER_SUSTAINED}℃ 持续>1 小时才成立，请 1 小时内复测并记录` };
+  }
+  return { level: 'none', why: `${v.toFixed(1)}℃ 未达 ${FEVER_SUSTAINED}℃` };
+}
+
+function feverFlag(ts, v, author, why) { /* K2：急症提示不可忽略关闭——必须确认"按铃/联系医护"才能关 */
   openModal('这是急症信号', `<div class="hl-def"><b>≥38.3℃（或 ≥38.0℃ 持续>1h）+ ANC&lt;0.5 = 粒缺发热（定义原文口径）。</b><br><br>${esc(DATA.meta.feverAlert)}</div>
+  <p style="margin:10px 0 0"><b>本次判定依据：</b>${esc(why || '')}</p>
   <p class="small-note" style="margin-top:8px">本台不指导用药；是否服用退烧药、何时赴院，按医护指示。粒缺发热请按急症就医处理。</p>`,
   `<button class="primary" id="fever-ack">我知道了——立即按铃/联系医护</button>`, '粒缺发热 · 急症提示（不可忽略）');
-  $('#fever-ack').addEventListener('click', () => { closeModal(); toast('已记录到发热轨道（演示，仅内存）'); });
-  mem().temps.push({ ts, v, author });
+  $('#fever-ack').addEventListener('click', () => { closeModal(); toast('已记录到发热轨道（演示，仅内存）'); render(); });
 }
+/* 注意：体温入列由调用方统一负责（mem().temps.push）。这里不再 push——
+   否则同一次体温会进轨道两遍，体温曲线出现重复点、作者计数翻倍。 */
 function afterAdd(msg) { toast(msg || '已记录（演示，仅内存）'); render(); }
 
 /* ---------------- 导出（三出口之一：sharedOnly） ---------------- */
@@ -1079,8 +1113,12 @@ document.addEventListener('click', (e) => {
       { key: 'author', label: '记录人（author_role）', type: 'select', options: ['patient', 'caregiver'] }
     ], (v) => {
       const ts = v.ts.replace(' ', 'T').slice(0, 16); const val = Number(v.v);
+      const prior = mem().temps.slice();
       mem().temps.push({ ts, v: val, author: v.author });
-      if (val >= 38.3 || val >= 38.0) feverFlag(ts, val, v.author); else { toast('已记录（演示，仅内存）'); render(); }
+      const verdict = classifyTemp(ts, val, prior);
+      if (verdict.level === 'fever') feverFlag(ts, val, v.author, verdict.why);
+      else if (verdict.level === 'watch') { toast(`${verdict.why}（已记录，观察中）`, { long: true }); render(); }
+      else { toast(`已记录：${verdict.why}`, { long: true }); render(); }
     }, '体温连录 · author_role 贯穿');
     return;
   }
