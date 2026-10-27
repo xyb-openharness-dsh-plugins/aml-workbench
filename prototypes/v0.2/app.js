@@ -1,5 +1,5 @@
 'use strict';
-/* 小橙宝 OrangePal v0.6.1 — 急性髓系白血病（AML）工作台交互原型。
+/* 小橙宝 OrangePal v0.6.2 — 急性髓系白血病（AML）工作台交互原型。
    所有数据来自 demo-data.js（demo/build-demo-data.mjs 唯一源，合成演示数据）；不读写真实文件、不调用模型或宿主 API。
    页面树唯一权威：research-notes/family-landscape.md §6.2/§6.3（10 一级 / 27 二级）。
    红线（DEV-REQUIREMENTS K1–K6）：
@@ -14,7 +14,7 @@
    三种时间粒度互不混轴（16 号合同补充断言）：月粒度=一图秀 / 天粒度=dayGrid / 小时粒度=hourLane。 */
 
 const APP_INFO = {
-  version: '0.6.1',
+  version: '0.6.2',
   build: '2026-10-26',
   channel: 'prototype',
   channelLabel: '交互原型 · 未接入 DSH / AI',
