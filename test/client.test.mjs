@@ -129,7 +129,7 @@ test('④ Panel 自绘 header + 业务 iframe + 会话 aside + splitter（不是
   assert.equal(iframe.props.src, '/api/aml/ui/');
 
   /* 会话区：无会话时给引导文案，且节点始终在树里（隐藏靠 display，不卸载） */
-  const aside = body.children[1];
+  const aside = body.children.find((c) => c && c.tag === 'aside');
   assert.equal(aside.tag, 'aside');
   assert.equal(aside.props.style.display, 'none');
   assert.match(JSON.stringify(aside.children), /AI 对话还没开始/);
@@ -137,10 +137,12 @@ test('④ Panel 自绘 header + 业务 iframe + 会话 aside + splitter（不是
   /* 有会话时：aside 显示，并出现可拖 splitter（role=separator + aria-valuenow） */
   const live = Panel({ conversation: { tag: 'div', props: {}, children: ['native'] } });
   const liveBody = live.children[1];
-  const liveAside = liveBody.children[1];
+  const liveAside = liveBody.children.find((c) => c && c.tag === 'aside');
+  assert.equal(liveAside.tag, 'aside', 'aside 必须排在分隔线之后');
   assert.equal(liveAside.props.style.display, 'flex');
   assert.equal(liveAside.props.style.width, '35%', '默认会话宽度应取 AGENT_PANE.def=0.35');
-  const splitter = liveBody.children[2];
+  const splitter = liveBody.children.find((c) => c && c.props && c.props.role === 'separator');
+  assert.ok(liveBody.children.indexOf(splitter) < liveBody.children.indexOf(liveAside), '分隔线必须夹在业务区与会话之间');
   assert.equal(splitter?.props?.role, 'separator');
   assert.equal(splitter.props['aria-valuemin'], 25);
   assert.equal(splitter.props['aria-valuemax'], 45);
