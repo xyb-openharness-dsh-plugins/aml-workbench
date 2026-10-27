@@ -50,7 +50,23 @@ for (const f of ALL) {
     failed = true;
     continue;
   }
-  const expect = /^(index\.html|app\.js)$/.test(f) ? injectVersion(readFileSync(src, 'utf8')) : readFileSync(src, 'utf8');
+  const withVersion = /^(index\.html|app\.js)$/.test(f);
+  const raw = readFileSync(src, 'utf8');
+  const expect = withVersion ? injectVersion(raw) : raw;
+
+  /* 原型文件本身也要归一到 VERSION（2026-10-27 实测）：
+     原实现只在**拷贝到 public 时**注入，原型 `prototypes/v0.2/index.html`
+     因此停在旧版本号（实测 v0.4.0，而 VERSION 已是 0.6.0）。
+     但原型正是设计/演示/README 截图打开的那一份——用户看到的就是过期的版本号。
+     所以非 --check 模式下把注入结果写回原型；--check 模式下把"原型字面量过期"判为不同步。 */
+  if (withVersion && expect !== raw) {
+    if (checkOnly) {
+      stale.push(`prototypes/v0.2/${f} 版本字面量过期（应注入 v${VERSION}；跑 node scripts/sync-public.mjs 修正）`);
+    } else {
+      writeFileSync(src, expect, 'utf8');
+      console.log(`原型版本字面量归一 → v${VERSION}（${f}）`);
+    }
+  }
   if (checkOnly) {
     const dst = join(DST, f);
     if (!existsSync(dst)) stale.push(`缺 public/${f}`);

@@ -14,7 +14,7 @@
    三种时间粒度互不混轴（16 号合同补充断言）：月粒度=一图秀 / 天粒度=dayGrid / 小时粒度=hourLane。 */
 
 const APP_INFO = {
-  version: '0.4.0',
+  version: '0.6.0',
   build: '2026-10-26',
   channel: 'prototype',
   channelLabel: '交互原型 · 未接入 DSH / AI',
