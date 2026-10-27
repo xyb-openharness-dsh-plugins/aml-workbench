@@ -30,7 +30,7 @@ window.DISEASE_PRIMER = {
       sources: [
         { org: '中华医学会血液学分会', doc: '中国成人急性髓系白血病（非APL）诊断与治疗指南（2021 年版）', version: '2021', original: true, url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC8501285', page: '全文可读（PMC8501285）' },
         { org: 'ELN（欧洲白血病网）', doc: 'Diagnosis and management of AML in adults: 2022 recommendations（Döhner 等，Blood）', version: '2022', original: true, url: 'https://ashpublications.org/blood/article/140/12/1345/485817/Diagnosis-and-management-of-AML-in-adults-2022', page: '官方页（开放获取，可下载 PDF）' },
-        { org: 'NCI（美国国家癌症研究所）', doc: 'Adult Acute Myeloid Leukemia Treatment（PDQ）患者版', version: '2025-05 更新', original: false, secondaryUrl: 'https://www.cancer.gov/types/myeloproliferative/hp/adult-aml-treatment-pdq', page: '页码待核', note: '美国语境；诊断时点与中国实践基本一致' }
+        { org: 'NCI（美国国家癌症研究所）', doc: 'Adult Acute Myeloid Leukemia Treatment（PDQ）患者版', version: '2025-05 更新', original: false, secondaryUrl: 'https://www.cancer.gov/types/leukemia/patient/adult-aml-treatment-pdq', page: '页码待核', note: '美国语境；诊断时点与中国实践基本一致' }
       ]
     },
     {
@@ -43,11 +43,11 @@ window.DISEASE_PRIMER = {
           ['中华医学会血液学分会', '中国成人 AML（非APL）诊断与治疗指南（2021 年版）', '2021', { text: '已取得（全文可读）', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC8501285' }, '诊断流程、7+3 骨架方案、停化疗后第 7–14 天复查骨穿的窗口'],
           ['ELN（欧洲白血病网）', 'AML 成人诊断与治疗建议（Blood，Döhner 等）', '2022', { text: '已取得（开放获取）', url: 'https://ashpublications.org/blood/article/140/12/1345/485817/Diagnosis-and-management-of-AML-in-adults-2022' }, '风险分层三组、MRD 阈值语境'],
           ['中华医学会等', '中国中性粒细胞缺乏伴发热患者抗菌药物临床应用指南（2020 年版）', '2020-12', { text: '已取得（英文版 PMC）', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC7840550' }, '粒缺发热定义：口腔 ≥38.3℃ 单次，或 ≥38.0℃ 持续 >1 小时，且 ANC<0.5 或预计 48 小时内降至 0.5 以下'],
-          ['《中性粒细胞缺乏伴发热…指南》新版', '同上，含 CRO 耐药菌更新', '2026', { text: '未取得原件，据二次来源', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC13195557' }, '仅记录「存在新版、含耐药菌更新」，不引条文；上线前须按新版校对'],
-          ['NCCN', 'NCCN Clinical Practice Guidelines in Oncology: AML', '3.2026（2025-11-24 发布，取代 2.2026）', '未取得原件（正文需注册下载）', '仅在范围声明中写「参照 NCCN AML 3.2026」，不引条文'],
-          ['CSCO', 'CSCO 恶性血液病诊疗指南 2025', '2025-04（发布报道）', '未取得原件，据会议报道', '仅记录「2024/2025 有更新」这一事实'],
+          ['中华医学会血液学分会、中国医师协会血液科医师分会', '中性粒细胞缺乏伴发热患者抗菌药物临床应用中国指南（2026 年版）', '2026（PMC 上线 2026）', { text: '已取得（PMC 全文）', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC13195557' }, '2020 版的更新版，含 CRO 耐药菌内容；本台仍按 2020 版口径写定义，上线前须按本版校对'],
+          ['NCCN', 'NCCN Clinical Practice Guidelines in Oncology: AML', '3.2026（2025-11-24 发布，取代 2.2026）', { text: '未取得原件（正文需注册下载）', url: 'https://www.nccn.org/guidelines/category_1' }, '仅在范围声明中写「参照 NCCN AML 3.2026」，不引条文'],
+          ['CSCO', 'CSCO 恶性血液病诊疗指南 2025', '2025-04（发布报道）', { text: '未取得原件，据会议报道', url: 'https://www.csco.org.cn/cn/ncontent.aspx?oid=2379' }, '仅记录「2024/2025 有更新」这一事实'],
           ['ELN', 'AML MRD 更新', '2021', { text: '已取得（开放获取）', url: 'https://ashpublications.org/blood/article/138/26/2753/477736/2021-Update-on-MRD-in-acute-myeloid-leukemia-a' }, '0.01% / 0.1% 阈值语境的原始出处之一'],
-          ['《造血干细胞移植临床实践整体评估中国专家共识》', '2025 年版', '2025', '未取得原件，据平台转介', '仅列「有这份共识」，移植适应语境不引条文']
+          ['中国专家共识', '造血干细胞移植临床实践整体评估中国专家共识（2025 年版）', '2025', { text: '未取得原件，据平台转介', url: 'https://www.ihemato.com/Detail?id=1191' }, '仅列「有这份共识」，移植适应语境不引条文']
         ]
       },
       sources: [
@@ -104,7 +104,7 @@ window.DISEASE_PRIMER = {
       sources: [
         { org: '中华医学会血液学分会', doc: '中国成人 AML（非APL）指南（2021 年版）', version: '2021', original: true, url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC8501285', page: '全文可读' },
         { org: 'ELN', doc: 'AML 成人诊断与治疗建议（2022）', version: '2022', original: true, url: 'https://ashpublications.org/blood/article/140/12/1345/485817/Diagnosis-and-management-of-AML-in-adults-2022', page: '官方页（开放获取）' },
-        { org: '国家医疗保障局', doc: '维奈克拉片医保申报材料', version: '2022 申报', original: false, secondaryUrl: 'https://www.nhsa.gov.cn', page: '载明首次上市 2020-12', note: '申报材料非公开文件；本行只记「医保局收到申报」这一事实，批件号未核实' },
+        { org: '国家医疗保障局', doc: '维奈克拉片医保申报材料', version: '2022 申报', original: false, secondaryUrl: 'https://www.nhsa.gov.cn/col/col104/index.html', page: '载明首次上市 2020-12', note: '申报材料非公开文件；本行只记「医保局收到申报」这一事实，批件号未核实' },
         { org: 'NCCN', doc: 'NCCN AML 3.2026', version: '2025-11-24', original: false, page: '页码待核', note: '仅用作范围声明，不引条文' , secondaryUrl: 'https://www.nccn.org/updates'}
       ]
     },
@@ -122,9 +122,9 @@ window.DISEASE_PRIMER = {
       ],
       sources: [
         { org: 'NCCN', doc: 'NCCN Guidelines: AML', version: '3.2026（2025-11-24）', original: false, page: '页码待核', note: '仅元信息' , secondaryUrl: 'https://www.nccn.org/updates'},
-        { org: 'CSCO', doc: 'CSCO 恶性血液病诊疗指南 2025（发布报道）', version: '2025-04', original: false, page: '不适用', note: '据会议报道，正文未取得' , secondaryUrl: 'https://www.csco.ac.cn'},
+        { org: 'CSCO', doc: 'CSCO 恶性血液病诊疗指南 2025（发布报道）', version: '2025-04', original: false, page: '不适用', note: '据会议报道，正文未取得' , secondaryUrl: 'https://www.csco.org.cn/cn/ncontent.aspx?oid=2379'},
         { org: '本项目登记快照', doc: 'research/aml-cancer/manifest.json（unified-trial-mcp）', version: '2026-10-26', original: false, nolink: true, page: '不适用', note: '本仓内文件（无公网链接，见 research/ 目录）：241 条去重；ChiCTR/ICTRP 采集失败如实记录' },
-        { org: '国家医疗保障局', doc: '维奈克拉片医保申报材料', version: '2022 申报', original: false, secondaryUrl: 'https://www.nhsa.gov.cn', page: '不适用', note: '同上：申报材料非公开文件，只记事实' }
+        { org: '国家医疗保障局', doc: '维奈克拉片医保申报材料', version: '2022 申报', original: false, secondaryUrl: 'https://www.nhsa.gov.cn/col/col104/index.html', page: '不适用', note: '同上：申报材料非公开文件，只记事实' }
       ]
     }
   ]
