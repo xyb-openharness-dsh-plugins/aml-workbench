@@ -130,7 +130,8 @@ html.dp-lock, html.dp-lock body{ overflow: hidden; }
 .dp-lead{
   margin: 0 0 10px;
   font-size: calc(13px * var(--dp-tz)); line-height: 1.78; color: var(--dp-ink2);
-  max-width: 68ch;
+  /* 36 号 §4.3：正文块不设 max-width——右边界与表格/小标题一致，段落换行点才一致。
+     曾用 68ch（≈557px），表格却吃满 980px，视觉上"左边对齐、右边参差"。 */
 }
 .dp-empty{ color: var(--dp-muted); font-style: normal; }
 
@@ -139,14 +140,19 @@ html.dp-lock, html.dp-lock body{ overflow: hidden; }
   margin: 0 0 5px;
   font-size: calc(12.5px * var(--dp-tz)); font-weight: 700; color: var(--dp-accent-deep);
 }
+/* 36 号 §4.3：分组内列表缩进只作用在项目符号层，与 lead 同左基线 */
+.dp-group .dp-points{ padding-left: 20px; margin-bottom: 6px; }
 
 .dp-points{ margin: 0 0 10px; padding-left: 18px; }
 .dp-points li{
   font-size: calc(12.8px * var(--dp-tz)); line-height: 1.75; color: var(--dp-ink2);
-  margin-bottom: 5px; max-width: 68ch;
+  margin-bottom: 5px;
+  /* 同上：列表项与正文同宽 */
 }
 
 .dp-table-wrap{ overflow-x: auto; margin: 0 0 12px; }
+/* 36 号 §4.3：窄容器下表格横向滚动，不压缩列宽导致逐字换行 */
+.dp-table{ min-width: 640px; }
 .dp-table{
   border-collapse: collapse; width: 100%;
   font-size: calc(12.2px * var(--dp-tz));

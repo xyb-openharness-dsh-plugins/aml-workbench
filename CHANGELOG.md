@@ -117,3 +117,8 @@ M5 七步移植（V1 通过：check 全绿 + 83/83 测试 + audit 43/43 独立�
 - **「＋ 新建我的档案」入口**：已装演示数据的用户在档案切换弹窗里可新建空档案（`newProfile:true`），直接进入三步向导。
 - **解析前置失败也落审计行**：无 MinerU Token 时返回 503 同时写一条 `parse_failed` document（第 2 步如实显示「解析失败」可重试），不再查无此件。
 - 端到端实测（空库）：bootstrap needsOnboarding=true → 建档 → 上传 png 得 503+docId+parse_failed → 向导第 1–3 步渲染、上传入口在位、失败原因可见。
+
+## 0.6.1 — 2026-10-27
+
+- 修复「疾病概要浮窗右边界参差」（用户实指）：AML 的 primer.css 是旧副本（正文/列表 68ch，表格 980px）。同步 starter §4.3 修复版：正文块不设 max-width，与表格/小标题同宽同右边界；窄屏表格横向滚动不压缩列。实测四类元素右边界 1210px 全对齐。
+- 同步 starter 最新 probe-disease-primer.mjs（含 P9 排版对齐断言，1440/900/390 三档），10/10 通过。
