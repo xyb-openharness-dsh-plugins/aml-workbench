@@ -1,5 +1,5 @@
 'use strict';
-/* 小橙宝 OrangePal v0.4.1 — 急性髓系白血病（AML）工作台交互原型。
+/* 小橙宝 OrangePal v0.5.0 — 急性髓系白血病（AML）工作台交互原型。
    所有数据来自 demo-data.js（demo/build-demo-data.mjs 唯一源，合成演示数据）；不读写真实文件、不调用模型或宿主 API。
    页面树唯一权威：research-notes/family-landscape.md §6.2/§6.3（10 一级 / 27 二级）。
    红线（DEV-REQUIREMENTS K1–K6）：
@@ -14,7 +14,7 @@
    三种时间粒度互不混轴（16 号合同补充断言）：月粒度=一图秀 / 天粒度=dayGrid / 小时粒度=hourLane。 */
 
 const APP_INFO = {
-  version: '0.4.1',
+  version: '0.5.0',
   build: '2026-10-26',
   channel: 'prototype',
   channelLabel: '交互原型 · 未接入 DSH / AI',
@@ -134,12 +134,13 @@ const state = {
   range: 'all', sel: { demo1: ['ANC', 'PLT', 'WEIGHT', 'MRDFC'], demo2: ['ANC', 'PLT', 'WEIGHT'] },
   toggles: { treatment: true, keypoints: true },
   pin: null,
+  txdays: [], /* api 形态的疗程按天记录缓存（loadBootstrap 时拉取；demo 形态用 mem().txdays） */
   agent: { open: false, draft: null, cand: null, prompt: '' },
   /* 临床试验（35 号三步）：trials=检索缓存（null=未加载），filter=检索条件，saved=收藏（dev 走 saved_trial 表，原型 mem） */
   trial: { loading: false, loaded: false, items: [], snapshotDate: null, source: 'demo', sources: [], filter: { q: '', status: 'all' } },
   mem: {
-    demo1: { temps: [], txf: [], oral: [], meals: [], io: [], feels: [], deaths: [], burdens: [], questions: null, docs: [], savedTrials: [], additions: {} },
-    demo2: { temps: [], txf: [], oral: [], meals: [], io: [], feels: [], deaths: [], burdens: [], questions: null, docs: [], savedTrials: [], additions: {} }
+    demo1: { temps: [], txf: [], oral: [], meals: [], io: [], feels: [], deaths: [], burdens: [], questions: null, docs: [], savedTrials: [], additions: {}, txdays: [] },
+    demo2: { temps: [], txf: [], oral: [], meals: [], io: [], feels: [], deaths: [], burdens: [], questions: null, docs: [], savedTrials: [], additions: {}, txdays: [] }
   }
 };
 /* ---------------- 数据层（原型 / 开发版同一份渲染代码） ----------------
@@ -185,6 +186,10 @@ async function loadBootstrap() {
     }
     DATA = data;
     TODAY = DATA.meta?.today || TODAY;
+    try {
+      const t = await fetch(base + '/records/tx-day?profile=' + encodeURIComponent(DATA.profiles[0]?.id || state.profileId), { credentials: 'same-origin' });
+      if (t.ok) state.txdays = (await t.json()).items ?? [];
+    } catch { state.txdays = []; }
     return 'api';
   } catch { return 'demo'; }
 }
@@ -200,6 +205,32 @@ function applySourceBanner() {
     bar.innerHTML = '<span><b>离线演示数据</b> · 未连上本机服务，以下内容不是你的资料</span><span>仅本页演示 · 刷新重置 · 未接入 AI</span>';
   }
 }
+/* ---- 0.5.0：api 形态的表单统一写路径 ----
+   装机形态下表单此前只写 mem()（内存），用户记的东西不落库——真机反馈"无法添加数据"。
+   统一改为 POST /records/:kind（列名与 schema/0001 逐列一致，见 dsh/store.js RECORD_KINDS），
+   成功后重拉 bootstrap（服务端读模型是唯一事实源，不双写），失败明示原因不静默。 */
+async function apiPostJson(path, payload) {
+  const base = apiBase();
+  const res = await fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) });
+  if (!res.ok) { let m = ''; try { m = (await res.json()).message || ''; } catch { /* 解析失败保留 HTTP 码 */ } throw new Error(m || ('HTTP ' + res.status)); }
+  return res.json();
+}
+async function apiRefetch() { DATA_SOURCE = await loadBootstrap(); render(); }
+function apiSaveRecord(kind, payload, okMsg) {
+  closeModal();
+  void apiPostJson('/records/' + kind, { profileId: state.profileId, ...payload })
+    .then(() => { toast(okMsg || '已保存', { long: true }); return apiRefetch(); })
+    .catch((e) => toast('未保存：' + e.message, { long: true }));
+  return true; /* 接管弹窗：openForm 不再 closeModal（我们已先关） */
+}
+const AUTHOR = { patient: 'PATIENT', caregiver: 'CAREGIVER' };
+const COMP = { 红细胞: 'RBC', 血小板: 'PLATELET', 血浆: 'PLASMA' };
+const SITE = { 腋: 'AXILLARY', 口: 'ORAL', 耳: 'EAR' };
+
+const lastTxDone = (day) => {
+  const recs = (DATA_SOURCE === 'api' ? state.txdays : mem().txdays).filter((r) => r.day_index === day).sort((a, b) => (a.id || 0) - (b.id || 0));
+  return recs.length && Number(recs[recs.length - 1].done) === 1;
+};
 const mem = () => state.mem[state.profileId];
 const added = (k) => { const m = mem(); if (!m.additions[k]) m.additions[k] = []; return m.additions[k]; };
 const questions = () => { const m = mem(); if (!m.questions) m.questions = (profile().docs.questions || []).map((q) => ({ ...q })); return m.questions; };
@@ -417,8 +448,11 @@ function dayGridSVGless(cal) {
     const band = (cal.bands || []).find((b) => row.day >= b.from && row.day <= b.to);
     const bandCls = band ? ` band-${band.kind}` : '';
     const greyCls = hasContent ? '' : ' grey';
-    cells.push(`<div class="dg-cell${bandCls}${greyCls}${todayCls}" title="${esc(row.d)} · D${row.day}">
-      <span class="dg-day">${esc(String(row.d).slice(5))}</span><span class="dg-dn">D${row.day}</span>
+    /* 0.5.0 反馈：日格可点（含键盘）——点开当日详情并可直接记完成/延迟（tx-day） */
+    const doneRec = [...(DATA_SOURCE === 'api' ? state.txdays : mem().txdays)].filter((r) => r.day_index === row.day && Number(r.done) === 1).sort((a, b) => (b.id || 0) - (a.id || 0))[0];
+    const doneCls = doneRec ? ' done' : '';
+    cells.push(`<div class="dg-cell${bandCls}${greyCls}${todayCls}${doneCls}" role="button" tabindex="0" data-action="day-open" data-day="${row.day}" aria-label="${esc(row.d)} D${row.day}，点开当日详情" title="${esc(row.d)} · D${row.day}${doneRec ? ' · 已完成' : ''}">
+      <span class="dg-day">${esc(String(row.d).slice(5))}</span><span class="dg-dn">D${row.day}${doneRec ? ' ✓' : ''}</span>
       <div class="dg-marks">${marks}</div>${fever}${tx}${note}</div>`);
   });
   return `<div class="dg-grid" role="grid" aria-label="${esc(cal.label)}">${cells.join('')}</div><p class="small-note" style="margin-top:8px">无记录的日子显示灰格（含"仅知月份"精度：只记得月份时由读模型灰格占位，不造数）。</p>`;
@@ -1541,6 +1575,42 @@ document.addEventListener('click', (e) => {
   if (a === 'export-shared') { showExport(false); return; }
   if (a === 'export-full') { showExport(true); return; }
   /* 表单类（每页显式编辑入口 ≤1；每表单 ≤6 字段） */
+  if (a === 'day-open') {
+    const day = Number(el.dataset.day);
+    const cal = profile().tx.calendar;
+    const row = (cal.daily || []).find((r) => r.day === day);
+    if (!row) { toast('这一格没有计划数据'); return; }
+    const recs = (DATA_SOURCE === 'api' ? state.txdays : mem().txdays).filter((r) => r.day_index === day).sort((x, y) => (x.id || 0) - (y.id || 0));
+    const last = recs[recs.length - 1];
+    const doneNow = last && Number(last.done) === 1;
+    openModal(`D${day} · ${row.d}`,
+      `<div class="form-grid">
+        <div><label class="form-label">当日用药（计划原文）</label><p style="margin:2px 0 0;font-size:13.5px">${esc(row.marks?.length ? row.marks.join(' / ') : '（休疗日）')}</p></div>
+        <div><label class="form-label">状态</label><p style="margin:2px 0 0;font-size:13.5px"><b>${doneNow ? '已完成 ✓' : '未完成（未标记）'}</b>${last?.delay_reason ? ` · 延迟原因：${esc(last.delay_reason)}` : ''}</p></div>
+        <div><label class="form-label" for="f-actual">实际日期</label><input id="f-actual" type="date" value="${last?.actual_date || row.d}"></div>
+        <div><label class="form-label" for="f-delay">延迟原因（如：感染暂停一天）</label><input id="f-delay" placeholder="可选，照医嘱原话"></div>
+      </div>
+      ${recs.length ? `<p class="small-note" style="margin-top:6px">本日已有 ${recs.length} 条登记（更正=新增一条版本记录，旧记录保留）。</p>` : ''}`,
+      `<button class="primary" data-action="day-done" data-day="${day}" data-done="${doneNow ? 0 : 1}" data-date="${row.d}">${doneNow ? '取消完成标记' : '标记当日完成'}</button>
+       <button data-action="day-delay" data-day="${day}" data-date="${row.d}">只记延迟原因</button>
+       <button data-action="close">关闭</button>`, '诱导日历 · 按天记录（K1）');
+    return;
+  }
+  if (a === 'day-done' || a === 'day-delay') {
+    const day = Number(el.dataset.day); const cal = profile().tx.calendar;
+    const row = (cal.daily || []).find((r) => r.day === day) || {};
+    const delayEl = $('#f-delay');
+    const payload = { cycle_label: cal.label || '诱导 1', day_index: day, plan_date: el.dataset.date || row.d, actual_date: $('#f-actual')?.value || row.d, done: a === 'day-done' ? Number(el.dataset.done) : (lastTxDone(day) ? 1 : 0), delay_reason: delayEl?.value?.trim() || (a === 'day-delay' ? '见医嘱' : undefined) };
+    if (DATA_SOURCE === 'api') {
+      void apiPostJson('/records/tx-day', { profileId: state.profileId, ...payload })
+        .then(() => { toast(a === 'day-done' ? (payload.done ? `D${day} 已标记完成` : `D${day} 已取消完成标记`) : `D${day} 延迟原因已记`, { long: true }); return apiRefetch(); })
+        .catch((e) => toast('未保存：' + e.message, { long: true }));
+      return;
+    }
+    mem().txdays.push({ ...payload, id: (mem().txdays.at(-1)?.id || 0) + 1 });
+    closeModal(); render(); toast(a === 'day-done' ? (payload.done ? `D${day} 已标记完成` : `D${day} 已取消完成标记`) : `D${day} 延迟原因已记`, { long: true });
+    return;
+  }
   if (a === 'temp-add') {
     openForm('连录一次体温（双源）', [
       { key: 'ts', label: '时间（YYYY-MM-DD HH:mm）', ph: `${TODAY} 08:10`, required: true },
@@ -1550,8 +1620,15 @@ document.addEventListener('click', (e) => {
     ], (v) => {
       const ts = v.ts.replace(' ', 'T').slice(0, 16); const val = Number(v.v);
       const prior = mem().temps.slice();
-      mem().temps.push({ ts, v: val, author: v.author });
       const verdict = classifyTemp(ts, val, prior);
+      if (DATA_SOURCE === 'api') {
+        closeModal();
+        void apiPostJson('/temperature', { profileId: state.profileId, measuredAt: ts, valueC: val, site: SITE[v.site] || null, authorRole: AUTHOR[v.author] })
+          .then(() => { if (verdict.level === 'fever') feverFlag(ts, val, v.author, verdict.why); else toast(verdict.level === 'watch' ? `${verdict.why}（已记录，观察中）` : `已记录：${verdict.why}`, { long: true }); return apiRefetch(); })
+          .catch((e) => toast('未保存：' + e.message, { long: true }));
+        return true;
+      }
+      mem().temps.push({ ts, v: val, author: v.author });
       if (verdict.level === 'fever') {
         /* K2/F-01：先关掉录入框，再弹急症框——保证急症提示是最后 showModal 的那个且留在屏幕上；
            返回 true 告知 openForm 已接管弹窗（不得再 closeModal）。 */
@@ -1571,7 +1648,10 @@ document.addEventListener('click', (e) => {
       { key: 'comp', label: '成分', type: 'select', options: ['红细胞', '血小板', '血浆'] },
       { key: 'units', label: '量（如 2u / 1 治疗量）', required: true },
       { key: 'reaction', label: '反应', type: 'select', options: ['无', '发热', '过敏', '其他（备注）'] }
-    ], (v) => { mem().txf.push({ ...v, pre: '', attr: '辐照去白' }); afterAdd('已登记（演示，仅内存）'); });
+    ], (v) => {
+      if (DATA_SOURCE === 'api') return apiSaveRecord('transfusion', { event_date: v.d, component: COMP[v.comp] || 'RBC', units_text: v.units, reaction: v.reaction === '无' ? '无' : v.reaction }, '已登记输注');
+      mem().txf.push({ ...v, pre: '', attr: '辐照去白' }); afterAdd('已登记（演示，仅内存）');
+    });
     return;
   }
   if (a === 'oral-add') {
@@ -1580,7 +1660,10 @@ document.addEventListener('click', (e) => {
       { key: 'grade', label: 'WHO 分级', type: 'select', options: ['0 无', 'I 级（红斑/疼痛）', 'II 级（红斑+溃疡，能进固体）', 'III 级（仅流食）', 'IV 级（无法进食）'] },
       { key: 'eat', label: '进食能力', type: 'select', options: ['正常', '固体受限', '仅流食', '不能进食'] },
       { key: 'measure', label: '措施（医嘱原文）' }
-    ], (v) => { mem().oral.push(v); afterAdd('已记录（不荐护理方案）'); });
+    ], (v) => {
+      if (DATA_SOURCE === 'api') return apiSaveRecord('mucositis', { logged_at: v.d, grade_text: v.grade, symptom_text: `进食能力：${v.eat}${v.measure ? '；措施：' + v.measure : ''}` }, '已记录黏膜炎');
+      mem().oral.push(v); afterAdd('已记录（不荐护理方案）');
+    });
     return;
   }
   if (a === 'meal-add') {
@@ -1588,7 +1671,10 @@ document.addEventListener('click', (e) => {
       { key: 'd', label: '日期', ph: TODAY, required: true },
       { key: 'text', label: '吃了什么（份量照记）', required: true },
       { key: 'author', label: '记录人', type: 'select', options: ['patient', 'caregiver'] }
-    ], (v) => { mem().meals.push(v); afterAdd('已记录（不给食谱）'); });
+    ], (v) => {
+      if (DATA_SOURCE === 'api') return apiSaveRecord('intake', { logged_at: v.d, note: `食量：${v.text}`, author_role: AUTHOR[v.author] }, '已记录食量');
+      mem().meals.push(v); afterAdd('已记录（不给食谱）');
+    });
     return;
   }
   if (a === 'io-add') {
@@ -1597,7 +1683,10 @@ document.addEventListener('click', (e) => {
       { key: 'in', label: '入量（mL）', required: true },
       { key: 'out', label: '出量（mL）', required: true },
       { key: 'note', label: '备注' }
-    ], (v) => { mem().io.push(v); afterAdd('已记录（防脱水提醒看护士答复原文）'); });
+    ], (v) => {
+      if (DATA_SOURCE === 'api') return apiSaveRecord('intake', { logged_at: v.d, note: `入量 ${v.in} mL / 出量 ${v.out} mL${v.note ? '；' + v.note : ''}` }, '已记录出入量');
+      mem().io.push(v); afterAdd('已记录（防脱水提醒看护士答复原文）');
+    });
     return;
   }
   if (a === 'feel-add') {
@@ -1605,7 +1694,10 @@ document.addEventListener('click', (e) => {
       { key: 'd', label: '日期', ph: TODAY, required: true },
       { key: 'text', label: '想记的话', required: true },
       { key: 'author', label: '记录人', type: 'select', options: ['patient', 'caregiver'] }
-    ], (v) => { mem().feels.push({ ...v, role: ROLE_LABEL[v.author], visibility: 'shared' }); afterAdd('已记录（双主体并列，不平均）'); });
+    ], (v) => {
+      if (DATA_SOURCE === 'api') return apiSaveRecord('feeling', { logged_at: v.d, kind_in: 'FEEL', content: v.text, author_role: AUTHOR[v.author], visibility: 'public' }, '已记录感受');
+      mem().feels.push({ ...v, role: ROLE_LABEL[v.author], visibility: 'shared' }); afterAdd('已记录（双主体并列，不平均）');
+    });
     return;
   }
   if (a === 'death-add') {
@@ -1613,7 +1705,10 @@ document.addEventListener('click', (e) => {
       { key: 'd', label: '日期', ph: TODAY, required: true },
       { key: 'text', label: '想记的话', required: true },
       { key: 'author', label: '记录人', type: 'select', options: ['patient', 'caregiver'] }
-    ], (v) => { mem().deaths.push({ ...v, role: ROLE_LABEL[v.author], visibility: 'private' }); afterAdd('已记录 · 默认私密（三出口过滤）'); });
+    ], (v) => {
+      if (DATA_SOURCE === 'api') return apiSaveRecord('feeling', { logged_at: v.d, kind_in: 'DEATH_PREP', content: v.text, author_role: AUTHOR[v.author], visibility: 'private' }, '已记录（私密，三出口过滤）');
+      mem().deaths.push({ ...v, role: ROLE_LABEL[v.author], visibility: 'private' }); afterAdd('已记录 · 默认私密（三出口过滤）');
+    });
     return;
   }
   if (a === 'burden-add') {
@@ -1621,7 +1716,10 @@ document.addEventListener('click', (e) => {
       { key: 'd', label: '日期', ph: TODAY, required: true },
       { key: 'text', label: '照护者的话', required: true },
       { key: 'author', label: '记录人', type: 'select', options: ['patient', 'caregiver'] }
-    ], (v) => { mem().burdens.push({ ...v, role: ROLE_LABEL[v.author], visibility: 'shared' }); afterAdd('已记录'); });
+    ], (v) => {
+      if (DATA_SOURCE === 'api') return apiSaveRecord('feeling', { logged_at: v.d, kind_in: 'BURDEN', content: v.text, author_role: AUTHOR[v.author], visibility: 'public' }, '已记录照护负担');
+      mem().burdens.push({ ...v, role: ROLE_LABEL[v.author], visibility: 'shared' }); afterAdd('已记录');
+    });
     return;
   }
   if (a === 'bm-add') {
@@ -1630,7 +1728,10 @@ document.addEventListener('click', (e) => {
       { key: 'site', label: '部位', type: 'select', options: ['髂后上棘（左）', '髂后上棘（右）', '胸骨'] },
       { key: 'blast', label: '原始细胞（原文）' },
       { key: 'result', label: '结论（医生原文）' }
-    ], (v) => { added('bm').push(v); afterAdd('已登记（判读归医生）'); });
+    ], (v) => {
+      if (DATA_SOURCE === 'api') return apiSaveRecord('marrow-procedure', { done_on: v.d, purpose_text: `部位：${v.site || '未记'}`, result_text: `原始细胞：${v.blast || '未记'}；结论：${v.result || '未记'}` }, '已登记骨穿采样');
+      added('bm').push(v); afterAdd('已登记（判读归医生）');
+    });
     return;
   }
   if (a === 'doc-add') {
@@ -1638,6 +1739,7 @@ document.addEventListener('click', (e) => {
       { key: 'name', label: '文件名', required: true },
       { key: 'kind', label: '类型', type: 'select', options: ['PDF', '图片'] }
     ], (v) => {
+      if (DATA_SOURCE === 'api') return apiSaveRecord('document', { file_name: v.name, sha256: 'pending-' + Date.now().toString(36), status: 'pending', imported_at: TODAY }, '已登记待解析（原件上传走「资料导入」）');
       mem().docs.push({ name: v.name, kind: v.kind, status: '待核对' });
       profile().docs.candidates.push({ id: uid('cand'), title: `${v.name} 抄单候选（演示候选）`, fields: [['文件', v.name], ['状态', '待核对（原文抄录）']], src: 'docs-lib 演示' });
       closeModal(); render(); toast('已加入解析队列：到「整理草稿与核对」看候选', { back: true });
@@ -1646,6 +1748,7 @@ document.addEventListener('click', (e) => {
   }
   if (a === 'q-add') {
     openForm('加一条要问的', [{ key: 'text', label: '问题', required: true }], (v) => {
+      if (DATA_SOURCE === 'api') return apiSaveRecord('question', { kind_in: 'fact', content: v.text, created_at: TODAY, from_scenario: '就诊准备' }, '已加入疑问清单');
       questions().push({ id: uid('q'), text: v.text, asked: false, src: `${TODAY} 就诊准备生成` });
       closeModal(); render(); toast('已加入疑问清单', { back: true });
     });

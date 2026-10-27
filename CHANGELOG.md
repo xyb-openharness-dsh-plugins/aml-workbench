@@ -92,3 +92,10 @@ M5 七步移植（V1 通过：check 全绿 + 83/83 测试 + audit 43/43 独立�
 ## 0.4.0 补记（复核阶段修复）
 
 - **dev-server 内存演示库缺新方法**：0.4.0 的 listTrials/addRecord/listRecords/addSavedTrial/listSavedTrials 只接在 workspace 门面上，独立启动形态 500（records_write/trials_read）。已补齐两形态能力一致，CDP 实测：匹配页四档词/无法自动匹配/这不是入组资格/未核实/快照全在场；POST records/transfusion → GET 回读 +1；非法 kind 400。
+
+## 0.5.0 — 2026-10-27
+
+真机走查第二轮三缺陷修复：
+1. **装机后临床检索为空**——`research/` 目录未随包发出（装机面规则⑨同款坑）；已入 files 白名单 + 新增 check-runtime-files 断言器。
+2. **表单无法添加数据**——api 形态表单只写内存；已接 `POST /records/:kind` 全族（体温走既有 /temperature），成功后重拉读模型渲染、失败明示原因。
+3. **日历点击无反馈**——dayGrid 日格新增可点（含键盘），弹当日详情：计划用药/完成状态/实际日期/延迟原因，写 tx-day 新版本行，格上 ✓ 完成态可见。

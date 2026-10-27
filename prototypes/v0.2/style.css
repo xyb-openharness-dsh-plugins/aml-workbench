@@ -404,3 +404,9 @@ dialog#dialog::backdrop { background: rgba(58, 50, 41, .35); }
     --red-line-soft: #6E3A34; --amber-line-soft: #6B5628; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* 0.5.0：日格完成态（day-open 写入后可见） */
+.dg-cell.done { outline: 2px solid var(--act); outline-offset: -2px; background: var(--act-soft); cursor: pointer; }
+.dg-cell:not(.grey) { cursor: pointer; }
+.dg-cell:not(.grey):hover { outline: 2px dashed var(--act); outline-offset: -2px; }
+.dg-cell:not(.grey):focus-visible { outline: 3px solid var(--act-ink); }
