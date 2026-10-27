@@ -192,3 +192,8 @@ html.dp-lock, html.dp-lock body{ overflow: hidden; }
 @media (prefers-reduced-motion: reduce){
   .dp-overlay, .dp-panel{ animation: none; }
 }
+
+/* 36 号 §2.5：指南原件/二次来源链接（可点开或下载） */
+.dp-link { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.dp-link:hover { text-decoration-thickness: 2px; }
+.dp-miss { color: #b3372e; font-weight: 600; }
