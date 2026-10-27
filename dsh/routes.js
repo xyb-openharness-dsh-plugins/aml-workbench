@@ -22,10 +22,11 @@
 export const API_PREFIX = '/api/aml'
 export const UI_PREFIX = `${API_PREFIX}/ui`
 
-/** 能力契约面（0.4.0）：通用记录写读按 kind 逐个声明——这就是 AI 写入能力的白名单。 */
+/** 能力契约面（0.4.0）：通用记录写读按 kind 逐个声明——这就是 AI 写入能力的白名单。
+ *  0.6.0：补 profiles.write（空 workspace 建档，三步闭环第 0 步）。 */
 export const CAPABILITIES = Object.freeze([
   'bootstrap', 'profile', 'temperature', 'export', 'import', 'candidate', 'parse', 'mineru-settings',
-  'trials.read', 'saved-trials.write', 'records.write', 'records.read',
+  'trials.read', 'saved-trials.write', 'records.write', 'records.read', 'profiles.write',
   'records.transfusion', 'records.mucositis', 'records.marrow-procedure', 'records.feeling',
   'records.question', 'records.intake', 'records.tx-day', 'records.document',
 ])
@@ -162,6 +163,27 @@ export function createApiHandler({ source, version, build, serveUi, failure = nu
         return sendJson(res, 200, source.bootstrap())
       }
 
+      /* 建档（0.6.0 三步闭环第 0 步）：只在空 workspace 里允许；已有档案幂等返回 existing。 */
+      if (path === `${API_PREFIX}/profiles`) {
+        if (req.method !== 'POST') return sendJson(res, 405, { error: 'method_not_allowed' })
+        if (typeof source.addProfile !== 'function') return sendJson(res, 501, { error: 'profiles_write_unavailable' })
+        const body = await readJson(req)
+        const saved = source.addProfile({
+          name: body?.name,
+          age: body?.age ?? null,
+          gender: body?.gender ?? null,
+          caregiver: body?.caregiver ?? null,
+          newProfile: body?.newProfile === true,
+        })
+        const all = typeof source.listProfiles === 'function' ? source.listProfiles() : []
+        const hit = all.find((p) => p.id === saved.id) ?? all[0] ?? null
+        return sendJson(res, 200, {
+          existing: Boolean(saved.existing),
+          profile: hit ?? { id: saved.id, name: saved.name },
+          profileId: saved.id,
+        })
+      }
+
       /* 单档案：private 看法默认不给，只有显式 ?private=1 才返回原文（三出口口径统一）。 */
       const profileMatch = path.match(new RegExp(`^${API_PREFIX}/profile/([^/]+)$`))
       if (profileMatch) {
@@ -237,11 +259,23 @@ export function createApiHandler({ source, version, build, serveUi, failure = nu
             message: `不支持的文件类型：${filename}（.html 上游必拒；.txt/.md/.csv 不走云端解析）`,
           })
         }
-        const { parseAndRecord, listCandidates } = await import('./parse.js')
+        const { parseAndRecord, listCandidates, recordDocumentFailure } = await import('./parse.js')
         const { createMineruClient } = await import('./mineru.js')
         const bytes = await readBody(req)
         if (!bytes.length) return sendJson(res, 400, { error: 'empty_body', message: '请求体是空的' })
-        const client = createMineruClient()
+        let client = null
+        let tokenError = null
+        try { client = createMineruClient() } catch (e) { tokenError = e }
+        if (!client) {
+          /* 0.6.0：无 Token/客户端不可用时也落 parse_failed 行（审计链 + 第 2 步如实显示失败原因）。 */
+          const failed = recordDocumentFailure(source.db, { bytes, filename, profileId })
+          return sendJson(res, 503, {
+            error: 'NO_TOKEN',
+            message: tokenError?.message || '没有可用的 MinerU 客户端（缺 token？）',
+            documentId: failed.documentId,
+            status: 'parse_failed',
+          })
+        }
         const result = await parseAndRecord(source.db, { bytes, filename, profileId, client })
         return sendJson(res, 200, {
           documentId: result.documentId,
@@ -263,8 +297,11 @@ export function createApiHandler({ source, version, build, serveUi, failure = nu
         if (req.method !== 'POST') return sendJson(res, 405, { error: 'method_not_allowed' })
         const parse = await import('./parse.js')
         const id = decodeURIComponent(acceptMatch[1])
+        /* 0.6.0：治疗候选确认必须带 D1 起始日期（body {d1:'YYYY-MM-DD'}），这里透传给 acceptCandidate；
+           其它 kind 忽略该字段。缺 d1 → 400 FIELD_REQUIRED（前端先弹日期框再 accept）。 */
+        const body = await readJson(req)
         const result = acceptMatch[2] === 'accept'
-          ? parse.acceptCandidate(source.db, id)
+          ? parse.acceptCandidate(source.db, id, { d1: body?.d1 ?? null })
           : parse.rejectCandidate(source.db, id)
         return sendJson(res, 200, result)
       }

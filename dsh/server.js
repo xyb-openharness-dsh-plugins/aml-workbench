@@ -115,6 +115,8 @@ export function createHandler({ workbench }) {
       db: workbench.db,
       bootstrap: () => workbench.bootstrap(),
       profile: (key, opts) => workbench.getProfile(key, opts),
+      listProfiles: () => workbench.listProfiles(),
+      addProfile: (input) => workbench.addProfile(input),
       saveExport: (key) => workbench.saveExport(key),
       addTemperature: (input) => workbench.addTemperature(input),
       listTemperatures: (key, opts) => workbench.listTemperatures(key, opts),

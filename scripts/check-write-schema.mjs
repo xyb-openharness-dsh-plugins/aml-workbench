@@ -77,6 +77,7 @@ const extraCaps = [...capSet].filter((c) => c.startsWith('records.') && !RECORD_
 if (extraCaps.length) problems.push(`W3 CAPABILITIES 里出现白名单以外的 records.* 项：${extraCaps.join(', ')}`)
 if (!capSet.has('trials.read')) problems.push('W3 CAPABILITIES 缺 trials.read（35 号检索契约）')
 if (!capSet.has('saved-trials.write')) problems.push('W3 CAPABILITIES 缺 saved-trials.write（35 号收藏契约）')
+if (!capSet.has('profiles.write')) problems.push('W3 CAPABILITIES 缺 profiles.write（0.6.0 三步闭环第 0 步：空 workspace 建档）')
 
 for (const f of ['dsh/workbench.js', 'dsh/index.js']) {
   let src
@@ -89,8 +90,9 @@ for (const f of ['dsh/workbench.js', 'dsh/index.js']) {
   }
   if (!/listTrials/.test(src)) problems.push(`W3 ${f} 没接 listTrials（宿主链路会 501）`)
   if (!/addRecord/.test(src)) problems.push(`W3 ${f} 没接 addRecord（宿主链路会 501）`)
+  if (!/addProfile/.test(src)) problems.push(`W3 ${f} 没接 addProfile（0.6.0 建档在宿主链路会 501）`)
 }
-oks.push('W3 capabilities 与 kind 白名单一致（routes/workbench/index 三处）')
+oks.push('W3 capabilities 与 kind 白名单一致（routes/workbench/index 三处，含 profiles.write）')
 
 if (problems.length) {
   console.error(`✗ 写路由↔schema↔capabilities 核对失败：\n- ${problems.join('\n- ')}`)

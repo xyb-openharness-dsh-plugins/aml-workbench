@@ -20,7 +20,7 @@
  */
 import Schema from '@deepseek-ai/schemastery'
 import { readFileSync } from 'node:fs'
-import { appendSavedTrial, appendTemperature, close, insertRecord, listRecords, listSavedTrials, migrate, openDatabase, readTrialSnapshot, RECORD_KINDS } from './store.js'
+import { appendSavedTrial, appendTemperature, close, createProfile, insertRecord, listRecords, listSavedTrials, migrate, openDatabase, readTrialSnapshot, RECORD_KINDS } from './store.js'
 import { seedDemo, hasDemoData } from './demo.js'
 import { bootstrap, getProfile, listProfiles } from './readmodels.js'
 import { servePublic } from './server.js'
@@ -62,7 +62,10 @@ function openDataSource(root) {
   const file = dir ? `${dir}/amlpal.sqlite` : ':memory:'
   const db = openDatabase(file)
   migrate(db)
-  if (!hasDemoData(db)) seedDemo(db, JSON.parse(readFileSync(new URL('../demo/demo-data.json', import.meta.url), 'utf8')))
+  /* 0.6.0：**只有内存演示态播种**。真实资料目录必须从空开始——否则用户一打开就看到
+     「张强（演示）」和演示治疗数据，三步初始化永远不可达（0.5.0 真机反馈的根因之一）。
+     演示数据仍是 dev-server 内存模式 / probe 的素材。 */
+  if (!dir && !hasDemoData(db)) seedDemo(db, JSON.parse(readFileSync(new URL('../demo/demo-data.json', import.meta.url), 'utf8')))
   const mode = dir ? 'workspace' : 'memory'
   return {
     db,
@@ -72,13 +75,14 @@ function openDataSource(root) {
       ...bootstrap(db, { version, build }),
       capabilities: [
         'bootstrap', 'profile', 'temperature', 'export', 'import', 'candidate', 'parse', 'mineru-settings',
-        'trials.read', 'saved-trials.write', 'records.write', 'records.read',
+        'trials.read', 'saved-trials.write', 'records.write', 'records.read', 'profiles.write',
         ...Object.keys(RECORD_KINDS).map((k) => `records.${k}`),
       ],
       source: { mode, root: dir },
     }),
     profile: (key, opts) => getProfile(db, key, opts),
     listProfiles: () => listProfiles(db),
+    addProfile: (input) => createProfile(db, input),
     addTemperature: (input) => appendTemperature(db, input),
     listTemperatures: (key, opts) => listTemperatures(db, key, opts),
     listTrials: (params) => readTrialSnapshot(params),

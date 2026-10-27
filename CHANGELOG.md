@@ -2,6 +2,17 @@
 
 只增不删；每条写清"改了什么 + 为什么 + 用户可见结果"。版本号与 VERSION、package.json 三处必须一致。
 
+## 0.6.0 — 2026-10-27
+
+包版本 0.6.0。零治疗初始化三步闭环：空资料目录的用户从建档 → 上传确诊材料 → 自动解析 → 逐条核对，一路走到自己的数据上屏。
+
+- **候选扩两类（诊断原文 / 诱导方案）**。`dsh/amlparse.js` 在化验候选之外保守抽「诊断/结论」语境行（出院诊断/确诊 + 急性髓系白血病/AML/M0–M7 同现）与化疗方案语境行（7+3/DA/阿糖胞苷/柔红霉素等），各最多一条、抽到原文（≤200 字）并带结构化 plan（方案名 + 药物清单 + 报告日期）；抽不到就不产候选（如实不编）。用户可见结果：上传一份出院记录，核对清单里出现"诊断原文""诱导方案"两类候选，逐条带原文与出处。
+- **acceptCandidate 按 kind 分流**。化验类走原逻辑（metric_point）；诊断确认写 `diagnosis_record`（subtype_text=原文，confirmed_on 取出处日期）；治疗确认**必须填 D1 起始日期**（`POST /candidate/:id/accept` body `{d1}`）→ 写 `tx_phase`（INDUCTION）并生成 42 行 `tx_calendar_day`（D1–7 用药物清单，D8+ 写"谷值期（停化疗观察）"）。生成按天日历只是把方案铺到 D1–42，用药与调整以医嘱为准。schema/0001 未动。
+- **空档案创建 `POST /api/aml/profiles`**。只在空 workspace 允许（已有档案幂等返回 existing）；姓名必填，年龄/照护者进叙述层 presentation。bootstrap 在 profiles 为空时带 `needsOnboarding:true`。能力契约面补 `profiles.write`（routes/workbench/index 三处 + check-write-schema 断言）。修复：空 workspace（未播种）此前没有 workspace 行，`UPDATE dataset_state` 静默 0 行会丢候选——parse/store 的状态写改为 upsert。
+- **前端三步向导**。`DATA_SOURCE==='empty'` 时看板整页是"三步开始"：第 0 步建档表单 → 第 1 步上传（`<input type="file" multiple accept=".pdf,.jpg,.jpeg,.png">`，拍照的报告照片直接选；逐个 POST /import，结果行显示成功/失败+原因，失败可重试）→ 第 2 步解析状态（document 表行：待解析/已解析/解析失败）→ 第 3 步核对确认（候选按治疗/诊断/化验分组，每条带原文+来源；治疗确认弹 D1 日期框）。确认或拒收后重拉，指标趋势与日历格即时变化。初始化完成（有 diagnosis_record 或 tx_calendar_day 行）后自动收起为"已完成初始化，去看 诊断与基因 / 诱导日历"小卡。「整理草稿与核对」api 形态改渲染真候选（与第 3 步同一组件，demo 形态不变）；诱导日历在无治疗数据时顶部放"走三步初始化 →"入口。候选文案保持「待核对·原文引用」，不写"解析正确/诊断正确"。
+- **读模型为空档案兜底**。没有叙述层的新档案：care/供者给空集合形状（不造事实）；诊断卡在有 diagnosis_record 行时也能出（who 取原文）。demo-parity 10 用例全绿（演示档案输出不变）。
+- **升版 0.5.0 → 0.6.0**：VERSION / package.json / lib/version.js / lib/client.js / README 截图与状态行 / 页面版本注入（sync-public）全部同源。
+
 ## 0.4.1 — 2026-10-27
 
 包版本 0.4.1。看板入口按「让用户少想一步」重写 + README 截图版本对齐。
@@ -99,3 +110,10 @@ M5 七步移植（V1 通过：check 全绿 + 83/83 测试 + audit 43/43 独立�
 1. **装机后临床检索为空**——`research/` 目录未随包发出（装机面规则⑨同款坑）；已入 files 白名单 + 新增 check-runtime-files 断言器。
 2. **表单无法添加数据**——api 形态表单只写内存；已接 `POST /records/:kind` 全族（体温走既有 /temperature），成功后重拉读模型渲染、失败明示原因。
 3. **日历点击无反馈**——dayGrid 日格新增可点（含键盘），弹当日详情：计划用药/完成状态/实际日期/延迟原因，写 tx-day 新版本行，格上 ✓ 完成态可见。
+
+## 0.6.0 补记（主会话复核修复）
+
+- **真实资料目录不再播种演示数据**（宿主 dsh/index.js 与 dev-server workspace 均改为空库起步，`--demo` 才播种）——此前一装就有「张强（演示）」，三步初始化永远不可达。这是 0.5.0 真机反馈「没有入口」的根因。
+- **「＋ 新建我的档案」入口**：已装演示数据的用户在档案切换弹窗里可新建空档案（`newProfile:true`），直接进入三步向导。
+- **解析前置失败也落审计行**：无 MinerU Token 时返回 503 同时写一条 `parse_failed` document（第 2 步如实显示「解析失败」可重试），不再查无此件。
+- 端到端实测（空库）：bootstrap needsOnboarding=true → 建档 → 上传 png 得 503+docId+parse_failed → 向导第 1–3 步渲染、上传入口在位、失败原因可见。

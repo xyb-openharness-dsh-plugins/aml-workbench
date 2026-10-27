@@ -453,6 +453,60 @@ export const listIntake = (db, key, opts) => listRecords(db, 'intake', key, opts
 export const listTxDays = (db, key, opts) => listRecords(db, 'tx-day', key, opts)
 export const listDocuments = (db, key, opts) => listRecords(db, 'document', key, opts)
 
+/* ---------------- 空档案创建（0.6.0：零治疗初始化三步闭环第 0 步） ----------------
+   只允许在没有任何档案的 workspace 里建档；已有档案时幂等返回 existing，不新建。
+   age/caregiver 不在冻结 schema 的 profile 表里（0001 只有 birth_date/gender）——
+   它们属叙述层，进 workspace.dataset_state.presentation（与演示数据同一存放处）。 */
+
+/**
+ * 建立第一份档案。空 workspace 才插入；已有档案返回 { existing:true, profileId }（幂等）。
+ * @returns {{id:string, existing:boolean, name:string}}
+ */
+export function createProfile(db, { name, age = null, gender = null, caregiver = null, newProfile = false } = {}) {
+  if (!db || typeof db.prepare !== 'function') throw new WriteError('NO_DATABASE', '建档需要一个已打开的数据库')
+  const nm = String(name ?? '').trim()
+  if (!nm) throw new WriteError('FIELD_REQUIRED', '姓名必填：先写患者姓名再建档')
+  if (nm.length > 40) throw new WriteError('BAD_VALUE', '姓名太长（≤40 字）')
+  let ageNum = null
+  if (age !== null && age !== undefined && age !== '') {
+    ageNum = Number(age)
+    if (!Number.isInteger(ageNum) || ageNum < 0 || ageNum > 130) throw new WriteError('BAD_VALUE', `年龄要是 0–130 的整数：${age}`)
+  }
+  /* newProfile=true：显式"新建我的档案"——已有演示/旧档案时也允许再建一份空的，
+     否则装过演示数据的用户永远回不到「0 治疗」三步初始化（0.5.0 真机反馈）。 */
+  const existing = db.prepare('SELECT id, name FROM profile ORDER BY rowid LIMIT 1').get()
+  if (existing && !newProfile) return { id: existing.id, existing: true, name: existing.name }
+
+  const id = `p${Date.now().toString(36)}`
+  db.exec('BEGIN')
+  try {
+    db.prepare(`INSERT INTO profile (id, name, gender, primary_role, created_at) VALUES (?,?,?,?,?)`)
+      .run(id, nm, gender ? String(gender).slice(0, 20) : null, 'PATIENT', new Date().toISOString())
+    if (ageNum !== null || (caregiver && String(caregiver).trim())) {
+      const r = db.prepare('SELECT dataset_state FROM workspace WHERE id = 1').get()
+      let state = {}
+      try { state = JSON.parse(r?.dataset_state ?? '{}') ?? {} } catch { state = {} }
+      state.meta = state.meta && typeof state.meta === 'object' ? state.meta : {}
+      state.presentation = state.presentation && typeof state.presentation === 'object' ? state.presentation : {}
+      state.presentation[id] = {
+        ...(state.presentation[id] ?? {}),
+        ...(ageNum !== null ? { age: ageNum } : {}),
+        ...(caregiver && String(caregiver).trim() ? { caregiverLabel: String(caregiver).trim().slice(0, 40) } : {}),
+      }
+      /* 空 workspace 可能还没有 workspace 行：upsert（与 dsh/parse.js writeState 同一语义）。 */
+      db.prepare(`INSERT INTO workspace (id, data_root, schema_version, dataset_state)
+        VALUES (1, NULL, '0001', ?)
+        ON CONFLICT(id) DO UPDATE SET dataset_state = excluded.dataset_state`)
+        .run(JSON.stringify(state))
+    }
+    db.exec('COMMIT')
+  } catch (error) {
+    try { db.exec('ROLLBACK') } catch { /* 原始错误优先 */ }
+    throw new WriteError('PROFILE_WRITE_FAILED', `档案没写进库：${error.message}`, { cause: error })
+  }
+  return { id, existing: false, name: nm }
+}
+
 /* ---------------- 临床试验（35 号：检索快照 + 收藏） ---------------- */
 
 /** research/ 下的登记快照（随仓不分发到装机包；缺文件返回 source:'missing' 不抛错）。 */

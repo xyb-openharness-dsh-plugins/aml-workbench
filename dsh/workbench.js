@@ -12,7 +12,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { appendSavedTrial, appendTemperature, close, insertRecord, listRecords, listSavedTrials, migrate, openDatabase, readTrialSnapshot, RECORD_KINDS } from './store.js'
+import { appendSavedTrial, appendTemperature, close, createProfile, insertRecord, listRecords, listSavedTrials, migrate, openDatabase, readTrialSnapshot, RECORD_KINDS } from './store.js'
 import { hasDemoData, seedDemo } from './demo.js'
 import { bootstrap, getProfile, listProfiles } from './readmodels.js'
 import { renderPrepMarkdown, exportFilename } from './export.js'
@@ -23,10 +23,11 @@ export const DB_FILE = 'amlpal.sqlite'
 /** 演示数据 JSON（由 demo/build-demo-data.mjs 从 prototypes/v0.2/demo-data.js 落成）。 */
 const DEMO_JSON = new URL('../demo/demo-data.json', import.meta.url)
 
-/** AI 写入能力契约面（与 routes.js CAPABILITIES 同源语义；bootstrap 一并下发）。 */
+/** AI 写入能力契约面（与 routes.js CAPABILITIES 同源语义；bootstrap 一并下发）。
+ *  0.6.0：补 profiles.write（空 workspace 建档，三步闭环第 0 步）。 */
 const WORKBENCH_CAPABILITIES = [
   'bootstrap', 'profile', 'temperature', 'export', 'import', 'candidate', 'parse', 'mineru-settings',
-  'trials.read', 'saved-trials.write', 'records.write', 'records.read',
+  'trials.read', 'saved-trials.write', 'records.write', 'records.read', 'profiles.write',
   ...Object.keys(RECORD_KINDS).map((k) => `records.${k}`),
 ]
 
@@ -39,8 +40,10 @@ export class Workbench {
   #db = null
   #workspace = null
 
-  /** 打开（必要时创建）工作区里的库。workspace 必须已通过 validateWorkspacePath。 */
-  static async open(workspace) {
+  /** 打开（必要时创建）工作区里的库。workspace 必须已通过 validateWorkspacePath。
+   *  0.6.0：opts.seedDemo=false 跳过演示播种（dev-server --no-demo / AMLPAL_NO_DEMO=1 用，
+   *  让「零治疗三步初始化」向导在空 workspace 上可达可测）；默认不传＝播种，既有行为不变。 */
+  static async open(workspace, { seedDemo: wantSeed = true } = {}) {
     const problems = validateWorkspacePath(workspace)
     if (problems.length) throw new Error(problems.join('；'))
 
@@ -58,7 +61,7 @@ export class Workbench {
     wb.#db = openDatabase(join(dir, DB_FILE))
     try {
       migrate(wb.#db)
-      if (!hasDemoData(wb.#db)) seedDemo(wb.#db, JSON.parse(readFileSync(DEMO_JSON, 'utf8')))
+      if (wantSeed && !hasDemoData(wb.#db)) seedDemo(wb.#db, JSON.parse(readFileSync(DEMO_JSON, 'utf8')))
     } catch (error) {
       try { close(wb.#db) } catch { /* 关不掉也要把原始错误抛出去 */ }
       throw error
@@ -76,6 +79,12 @@ export class Workbench {
     return { ...bootstrap(this.#db, { version, build }), capabilities: [...WORKBENCH_CAPABILITIES] }
   }
   listProfiles() { return listProfiles(this.#db) }
+
+  /**
+   * 建第一份档案（0.6.0 三步闭环第 0 步）：只允许空 workspace；已有档案幂等返回 existing。
+   * @returns {{id:string, existing:boolean, name:string}}
+   */
+  addProfile(input) { return createProfile(this.#db, input) }
   /** @param {boolean} [includePrivate=false] private 看法默认不返回（三出口口径） */
   getProfile(key, { includePrivate = false } = {}) { return getProfile(this.#db, key, { includePrivate }) }
 

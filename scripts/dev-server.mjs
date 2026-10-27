@@ -14,9 +14,9 @@ import { argv, exit } from 'node:process'
 import { readFileSync } from 'node:fs'
 import { Workbench, validateWorkspacePath } from '../dsh/workbench.js'
 import { startWorkbenchServer } from '../dsh/server.js'
-import { appendSavedTrial, close, insertRecord, listRecords, listSavedTrials, migrate, openDatabase, readTrialSnapshot } from '../dsh/store.js'
+import { appendSavedTrial, close, createProfile, insertRecord, listRecords, listSavedTrials, migrate, openDatabase, readTrialSnapshot } from '../dsh/store.js'
 import { hasDemoData, seedDemo } from '../dsh/demo.js'
-import { bootstrap, getProfile } from '../dsh/readmodels.js'
+import { bootstrap, getProfile, listProfiles } from '../dsh/readmodels.js'
 import { appendTemperature } from '../dsh/store.js'
 import { version, build } from '../lib/version.js'
 
@@ -45,9 +45,13 @@ async function main() {
       console.error(`✗ 资料目录不可用：${problems.join('；')}`)
       exit(1)
     }
-    const workbench = await Workbench.open(workspace)
+    /* 0.6.0：--no-demo（或 AMLPAL_NO_DEMO=1）跳过演示播种——空 workspace 保持空，
+       「三步开始」向导可达可测；默认仍播种（既有行为不变）。 */
+    /* 0.6.0：workspace 默认**不播种**（走三步初始化的真实起点）；--demo / AMLPAL_DEMO=1 才播种。 */
+    const wantDemo = args.includes('--demo') || process.env.AMLPAL_DEMO === '1'
+    const workbench = await Workbench.open(workspace, { seedDemo: wantDemo })
     const started = await startWorkbenchServer({ port, workbench })
-    console.log(`✓ 小橙宝开发版 v${version}（build ${build}）`)
+    console.log(`✓ 小橙宝开发版 v${version}（build ${build}）${wantDemo ? ' · 已播种演示数据（--demo）' : ' · 空库（未播种，走三步初始化）'}`)
     console.log(`  资料目录：${workbench.workspace}`)
     console.log(`  UI：${started.url}api/aml/ui/`)
     console.log(`  健康检查：${started.url}api/aml/health`)
@@ -65,6 +69,9 @@ async function main() {
     workspace: null,
     bootstrap: () => bootstrap(db, { version, build }),
     getProfile: (key, opts) => getProfile(db, key, opts),
+    /* 0.6.0：建档（空 workspace 才生效；内存演示库已有档案 → 幂等 existing）。 */
+    listProfiles: () => listProfiles(db),
+    addProfile: (input) => createProfile(db, input),
     saveExport: () => { throw new Error('内存演示库没有资料目录：用 --workspace 指定目录后再导出落盘') },
     addTemperature: (input) => appendTemperature(db, input),
     listTemperatures: (key, opts) => describeReadings(db, key, opts),

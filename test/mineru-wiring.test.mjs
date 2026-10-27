@@ -281,7 +281,8 @@ test('③ 宿主入口：Config 声明 root，apply 真的把 config.root 用起
   const src = readFileSync(new URL('../dsh/index.js', import.meta.url), 'utf8')
   assert.match(src, /export const Config = Schema\.object\(\{\s*\n?\s*root: Schema\.string\(\)/, 'Config 必须声明 root（Schemastery schema）')
   assert.match(src, /openDataSource\(config\?\.root\)|openDataSource\(config\.root\)/, 'apply 必须把 config.root 传进数据源')
-  assert.match(src, /if \(!hasDemoData\(db\)\) seedDemo/, '库里没有档案时才播种（不能每次启动覆盖）')
+  /* 0.6.0：真实资料目录不播种（否则永远进不了三步初始化）；只有内存演示态播种。 */
+  assert.match(src, /if \(!dir && !hasDemoData\(db\)\) seedDemo/, '只有内存演示态才播种；真实资料目录从空开始（三步初始化可达）')
   assert.match(src, /migrate\(db\)/, '打开即迁移')
   assert.match(src, /ctx\.connection\?\.requestRejection/, '宿主鉴权走 requestRejection，不自建登录')
   assert.match(src, /kind: 'prefix', path: API_PREFIX/, '注册方式必须是前缀（路由表在 routes.js）')

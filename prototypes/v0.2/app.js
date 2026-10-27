@@ -1,5 +1,5 @@
 'use strict';
-/* 小橙宝 OrangePal v0.4.0 — 急性髓系白血病（AML）工作台交互原型。
+/* 小橙宝 OrangePal v0.6.0 — 急性髓系白血病（AML）工作台交互原型。
    所有数据来自 demo-data.js（demo/build-demo-data.mjs 唯一源，合成演示数据）；不读写真实文件、不调用模型或宿主 API。
    页面树唯一权威：research-notes/family-landscape.md §6.2/§6.3（10 一级 / 27 二级）。
    红线（DEV-REQUIREMENTS K1–K6）：
@@ -138,6 +138,9 @@ const state = {
   agent: { open: false, draft: null, cand: null, prompt: '' },
   /* 临床试验（35 号三步）：trials=检索缓存（null=未加载），filter=检索条件，saved=收藏（dev 走 saved_trial 表，原型 mem） */
   trial: { loading: false, loaded: false, items: [], snapshotDate: null, source: 'demo', sources: [], filter: { q: '', status: 'all' } },
+  /* 0.6.0 三步初始化：uploads=本次会话的上传结果行（保留 File 以便失败重试），docs=document 表行，
+     cands=本档案待核对候选（GET /candidates 过滤 profileId）。 */
+  ob: { uploads: [], docs: [], cands: [] },
   mem: {
     demo1: { temps: [], txf: [], oral: [], meals: [], io: [], feels: [], deaths: [], burdens: [], questions: null, docs: [], savedTrials: [], additions: {}, txdays: [] },
     demo2: { temps: [], txf: [], oral: [], meals: [], io: [], feels: [], deaths: [], burdens: [], questions: null, docs: [], savedTrials: [], additions: {}, txdays: [] }
@@ -180,7 +183,7 @@ async function loadBootstrap() {
     if (!res.ok) return 'demo';
     const data = await res.json();
     if (!Array.isArray(data?.profiles) || !data.profiles.length) {
-      DATA = { profiles: [], meta: data?.meta ?? null };
+      DATA = { profiles: [], meta: data?.meta ?? null, needsOnboarding: data?.needsOnboarding === true };
       TODAY = DATA.meta?.today || TODAY;
       return 'empty';
     }
@@ -190,8 +193,74 @@ async function loadBootstrap() {
       const t = await fetch(base + '/records/tx-day?profile=' + encodeURIComponent(DATA.profiles[0]?.id || state.profileId), { credentials: 'same-origin' });
       if (t.ok) state.txdays = (await t.json()).items ?? [];
     } catch { state.txdays = []; }
+    if (!state.profileId || !DATA.profiles.some((p) => p.id === state.profileId)) state.profileId = DATA.profiles[0].id;
+    /* 先置 api 再拉向导数据（obRefresh 依赖 DATA_SOURCE 判形态），等它到位再返回——
+       否则首屏渲染在三步向导上显示"暂无候选/还没有材料"，要等下一次交互才补上。 */
+    DATA_SOURCE = 'api';
+    await obRefresh();
     return 'api';
   } catch { return 'demo'; }
+}
+/* ---- 0.6.0 三步初始化：上传 / 解析状态 / 候选核对的数据层 ---- */
+async function obRefresh() {
+  if (DATA_SOURCE !== 'api' || !state.profileId) return;
+  const base = apiBase();
+  try {
+    const d = await fetch(base + '/records/document?profile=' + encodeURIComponent(state.profileId), { credentials: 'same-origin' });
+    if (d.ok) state.ob.docs = (await d.json()).items ?? [];
+  } catch { /* 拉不到就保留旧值，不静默清空 */ }
+  try {
+    const c = await fetch(base + '/candidates', { credentials: 'same-origin' });
+    if (c.ok) state.ob.cands = ((await c.json()).candidates ?? []).filter((x) => x.profileId === state.profileId);
+  } catch { /* 同上 */ }
+}
+/** 上传一批原件到 POST /import（逐个传，结果行即时可见；File 保留在 uploads 里供重试）。 */
+async function obUploadFiles(files) {
+  const base = apiBase();
+  for (const file of files) {
+    try {
+      const res = await fetch(base + '/import?name=' + encodeURIComponent(file.name) + '&profile=' + encodeURIComponent(state.profileId),
+        { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, credentials: 'same-origin', body: file });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.message || j.error || ('HTTP ' + res.status));
+      state.ob.uploads.push({ name: file.name, ok: true, status: j.status, file, nCands: Array.isArray(j.candidates) ? j.candidates.length : 0 });
+      toast(`已上传：${file.name}${j.status === 'parsed' ? ' · 解析完成，出候选待核对' : ' · 已收件'}`, { long: true });
+    } catch (e) {
+      state.ob.uploads.push({ name: file.name, ok: false, reason: e.message, file });
+      toast(`没传上：${file.name} — ${e.message}`, { long: true });
+    }
+  }
+  render();
+  await apiRefetch();
+  await obRefresh();
+  render();
+}
+async function obPostJson(path, payload = {}) {
+  const res = await fetch(apiBase() + path, { method: 'POST', headers: { 'content-type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.message || j.error || ('HTTP ' + res.status));
+  return j;
+}
+/** 确认一条候选（treatment 需带 d1）→ 重拉 bootstrap + 候选，指标/日历即时变化。 */
+async function obAccept(id, payload = {}) {
+  try {
+    const j = await obPostJson('/candidate/' + encodeURIComponent(id) + '/accept', payload);
+    toast(j.kind === 'treatment' ? '已确认：42 天诱导日历已生成（用药以医嘱为准）'
+      : j.kind === 'diagnosis' ? '已确认：诊断原文已入档案（诊断与基因页可见）'
+      : '已确认：数值已入血象', { long: true });
+    await apiRefetch();
+    await obRefresh();
+    render();
+  } catch (e) { toast('未确认：' + e.message, { long: true }); }
+}
+/** 拒收一条候选：零副作用。 */
+async function obReject(id) {
+  try {
+    await obPostJson('/candidate/' + encodeURIComponent(id) + '/reject');
+    toast('已拒收这条候选（无副作用）');
+    await obRefresh();
+    render();
+  } catch (e) { toast('未拒收：' + e.message, { long: true }); }
 }
 /** 顶部说明条随数据源改写（HTML 里的字面量是"原型"口径，装机版不能照抄）。 */
 function applySourceBanner() {
@@ -200,7 +269,7 @@ function applySourceBanner() {
   if (DATA_SOURCE === 'api') {
     bar.innerHTML = '<span><b>本机数据 v' + esc(APP_INFO.version) + '</b> · 数据只存在你选的资料目录</span><span>只整理不判定 · 判读归血液科团队</span>';
   } else if (DATA_SOURCE === 'empty') {
-    bar.innerHTML = '<span><b>本机资料目录为空</b> · 界面显示空态（不拿演示档案填充）</span><span>只整理不判定 · 判读归血液科团队</span>';
+    bar.innerHTML = '<span><b>本机资料目录为空</b> · 从下方「三步开始」建档 → 上传 → 核对</span><span>只整理不判定 · 判读归血液科团队</span>';
   } else {
     bar.innerHTML = '<span><b>离线演示数据</b> · 未连上本机服务，以下内容不是你的资料</span><span>仅本页演示 · 刷新重置 · 未接入 AI</span>';
   }
@@ -460,7 +529,10 @@ function dayGridSVGless(cal) {
 function pageTxCal() {
   const p = profile(); const cal = p.tx.calendar;
   const lead = (new Date(cal.anchor).getDay() + 6) % 7;
+  /* 0.6.0：还没有治疗数据时，先把三步初始化入口放在最上面——日历页不空转。 */
+  const noTx = !(cal.daily || []).length && !(p.tx.cycles || []).length;
   return `${head('诱导日历（按天）', '7+3 到底怎么打的、为什么第 8 天反而最危险——D1–D42 每天一格：化疗打勾、谷值期带、骨穿窗口、当日体温/输注摘要。按天是本页粒度，不做"疗程"聚合（K1）。', aiBtn('tx'), '诱导日历（按天）')}
+  ${noTx ? `<div class="notice warn" style="margin-bottom:12px"><b>还没有治疗数据。</b>${go('走三步初始化 →', 'dash', '', 'org', 'data-step="to-onboard"')}<span class="small-note">确认治疗候选（原文含 7+3 / 药物）时填 D1 起始日期，日历就会按天铺开。</span></div>` : ''}
   <div class="card">
     <div class="dg-head"><div><span class="eyebrow">读模型 · anchor=${esc(cal.anchor)} · day_index 由 floor((d−anchor)/DAY)+1 派生</span><h2 style="font-size:16px">${esc(cal.label)}</h2></div></div>
     ${dayGridSVGless(cal)}
@@ -622,7 +694,131 @@ function metricCard(code) {
   const back = `<div class="back">${esc(m.note || '数值照抄化验单；解读归医生。')}</div>`;
   return `<div class="m-card"><span class="lab">${esc(m.name)}</span><div class="val" style="color:${m.color}">${esc(lastTxt)}</div><div class="when">${esc(last.d)}${prev ? ` · 上次 ${prev.neg ? (prev.label || '阴性') : fmtNum(prev.v, m.dec)}（${esc(prev.d)}）` : ''}</div>${back}</div>`;
 }
+
+/* ---------------- 0.6.0 三步初始化向导（零治疗建档闭环） ----------------
+   用户从零开始：建档 → 上传确诊材料 → 自动解析 → 核对确认 → 事实层（诊断/治疗/血象）。
+   红线：候选一律「待核对·原文引用」；不写"解析正确/诊断正确"；治疗候选确认时明说
+   「生成按天日历只是把方案铺到 D1–42，用药与调整以医嘱为准」。 */
+/* 初始化是否完成：有诊断原文（diagnosis_record）或 42 天日历（tx_calendar_day/tx_phase）任一即算。 */
+const onboardDone = () => {
+  const p = profile();
+  if (!p) return false;
+  return Boolean(p.dx?.subtype?.who) || (p.tx?.cycles?.length > 0) || (p.tx?.calendar?.daily?.length > 0);
+};
+/* 单条候选卡（三步向导第 3 步与「整理草稿与核对」api 形态复用同一份）。 */
+function obCandidateCard(c) {
+  const kind = c.kind === 'diagnosis' ? 'diagnosis' : c.kind === 'treatment' ? 'treatment' : 'metric';
+  const kindLabel = { diagnosis: '诊断原文', treatment: '治疗方案', metric: '化验数值' }[kind];
+  const body = kind === 'metric'
+    ? `<div class="kv"><em>字段</em><span>${esc(c.field)}</span><em>值</em><span>${esc(String(c.value ?? ''))}${c.unit ? ' ' + esc(c.unit) : ''}</span></div>`
+    : `<div class="ob-quote">「${esc(c.quote ?? '')}」</div>${kind === 'treatment' && c.plan
+      ? `<div class="kv"><em>方案名</em><span>${esc(c.plan.name || '—')}</span><em>药物</em><span>${esc((c.plan.drugs || []).join(' / ') || '原文未见明确药名')}</span><em>开始日期</em><span>${esc(c.plan.start_date || '原文未见（确认时补录 D1）')}</span></div>`
+      : ''}`;
+  return `<div class="cand-card ob-cand" style="margin-bottom:12px">
+    <div class="card-head"><h3 style="font-size:15px">${esc(c.field)}</h3><span>${pill(kindLabel, 'blue')}${pill('待核对·原文引用', 'amber')}</span></div>
+    ${body}
+    <p class="small-note" style="margin-top:8px">来源：${esc(c.src)}</p>
+    <div class="actions" style="margin-top:8px">${btn('确认', 'ob-accept', 'primary', `data-cand="${esc(c.id)}" data-kind="${kind}"`)}${btn('拒收', 'ob-reject', '', `data-cand="${esc(c.id)}"`)}</div>
+  </div>`;
+}
+function obGroups(cands) {
+  const groups = [
+    ['treatment', '治疗方案（确认时填 D1 起始日期，生成 42 天诱导日历）'],
+    ['diagnosis', '诊断原文（确认后进「诊断与基因」）'],
+    ['metric', '化验数值（确认后进血象趋势）'],
+  ];
+  return groups.map(([k, label]) => {
+    const list = cands.filter((c) => (c.kind === 'diagnosis' ? 'diagnosis' : c.kind === 'treatment' ? 'treatment' : 'metric') === k);
+    if (!list.length) return '';
+    return `${section(label, '', '')}<div>${list.map(obCandidateCard).join('')}</div>`;
+  }).join('');
+}
+/* 第 2 步的解析状态行：document 表行 + 本次会话上传结果（失败原因/重试）。 */
+function obDocRows() {
+  const uploaded = state.ob.uploads;
+  const docStatus = (name) => state.ob.docs.filter((d) => d.file_name === name).sort((a, b) => b.id - a.id)[0];
+  const rows = uploaded.map((u) => {
+    const doc = docStatus(u.name);
+    const st = u.ok ? (doc?.status ?? u.status ?? 'parsed') : 'failed';
+    const pillDef = { parsed: ['已解析', 'green'], parse_failed: ['解析失败', 'red'], failed: ['失败', 'red'], pending: ['待解析', 'amber'] }[st] ?? ['待解析', 'amber'];
+    const detail = u.ok ? `${pill(pillDef[0], pillDef[1])}${st === 'parsed' ? ` · 候选 ${u.nCands} 条待核对` : ''}${st === 'parse_failed' ? ' · 可在第 1 步重选该文件重试' : ''}`
+      : `${pill(pillDef[0], pillDef[1])} · ${esc(u.reason || '失败')}${u.file ? ' ' + btn('重试', 'ob-retry', 'soft', `data-name="${esc(u.name)}"`) : ''}`;
+    return `<div class="row-item"><span class="d">${esc(u.name)}</span><span class="txt">${detail}</span></div>`;
+  });
+  /* 只在库里、不是本次会话传的（如更早导入的）：一并列出状态。 */
+  const stale = state.ob.docs.filter((d) => !uploaded.some((u) => u.name === d.file_name));
+  for (const d of stale) {
+    const st = d.status === 'parsed' ? ['已解析', 'green'] : d.status === 'parse_failed' ? ['解析失败', 'red'] : ['待解析', 'amber'];
+    rows.push(`<div class="row-item"><span class="d">${esc(d.file_name)}</span><span class="txt">${pill(st[0], st[1])} · 导入于 ${esc(d.imported_at)}${d.status === 'parse_failed' ? ' · 重新上传同名原件可重试' : ''}</span></div>`);
+  }
+  return rows.join('');
+}
+/* 空档案（DATA_SOURCE==='empty'）：第 0 步建档表单 + 后续两步预告。 */
+function pageOnboardEmpty() {
+  return `${head('三步开始', '从小橙宝第一次使用到看见你自己的数据，只走三步：建档 → 上传确诊材料 → 核对确认。每一步的产物都可核对、可拒收（原文引用，不替医生下结论）。', '', '三步开始')}
+  <div class="card ob-step" style="margin-bottom:12px">
+    <div class="card-head"><div><span class="eyebrow">第 0 步 · 先建档</span><h2 style="font-size:16px">写上患者姓名，30 秒完成</h2></div>${pill('未开始', 'grey')}</div>
+    <div class="form-grid">
+      <div><label class="form-label" for="ob-name">姓名（必填）</label><input id="ob-name" placeholder="患者姓名"></div>
+      <div><label class="form-label" for="ob-age">年龄（可选）</label><input id="ob-age" type="number" min="0" max="130" placeholder="如 52"></div>
+      <div><label class="form-label" for="ob-gender">性别（可选）</label><input id="ob-gender" placeholder="如 女"></div>
+      <div><label class="form-label" for="ob-caregiver">照护者（可选）</label><input id="ob-caregiver" placeholder="如 女儿 / 丈夫"></div>
+    </div>
+    <div class="actions" style="margin-top:10px">${btn('建档，进入第 1 步', 'ob-create', 'primary', 'data-step="ob-create"')}</div>
+    <p class="small-note" style="margin-top:8px">建档后这一页会亮起第 1–3 步：上传材料 → 自动解析 → 逐条核对确认。数据只存在你选的资料目录。</p>
+  </div>
+  <div class="card ob-step is-dim"><span class="eyebrow">第 1 步 · 上传确诊材料（建档后可用）</span><p style="font-size:13.5px;margin:6px 0 0">出院记录、确诊报告、化验单都可以。拍照的报告照片也可以，直接选照片文件。</p></div>
+  <div class="card ob-step is-dim"><span class="eyebrow">第 2 步 · 自动解析（上传后自动进行）</span><p style="font-size:13.5px;margin:6px 0 0">解析失败会如实标出，可重试；失败不产候选。</p></div>
+  <div class="card ob-step is-dim"><span class="eyebrow">第 3 步 · 核对确认（候选逐条过目）</span><p style="font-size:13.5px;margin:6px 0 0">候选一律「待核对·原文引用」：确认才进正式数据，拒收零副作用。</p></div>`;
+}
+/* 已建档但还没确认过诊断/治疗：整页三步向导（上传 → 解析 → 核对）。 */
+function pageOnboard() {
+  const cands = state.ob.cands;
+  const step1 = `<div class="card ob-step" style="margin-bottom:12px">
+    <div class="card-head"><div><span class="eyebrow">第 1 步 · 上传确诊材料</span><h2 style="font-size:16px">出院记录 / 确诊报告 / 化验单</h2></div>${pill('拍照的报告照片也可以，直接选照片文件', 'dashed')}</div>
+    <input type="file" id="ob-file" multiple accept=".pdf,.jpg,.jpeg,.png" data-action="ob-files" hidden>
+    <div class="actions">${btn('选择文件（可多选）', 'ob-pick', 'primary', 'data-step="ob-upload"')}<span class="small-note">PDF / JPG / PNG；逐个上传，结果行即时显示。</span></div>
+  </div>`;
+  const step2 = `<div class="card ob-step" style="margin-bottom:12px">
+    <div class="card-head"><div><span class="eyebrow">第 2 步 · 解析状态（上传后自动解析）</span><h2 style="font-size:16px">${state.ob.docs.length ? `已收 ${state.ob.docs.length} 份材料` : '还没有材料'}</h2></div>${state.ob.docs.length ? pill('自动', 'blue') : pill('等待上传', 'grey')}</div>
+    ${obDocRows() || '<p class="small-note">上传后这里列出每份材料的解析状态：待解析 / 已解析 / 解析失败（失败不产候选，可重试）。</p>'}
+  </div>`;
+  const step3 = `<div class="card ob-step" style="margin-bottom:12px">
+    <div class="card-head"><div><span class="eyebrow">第 3 步 · 核对确认</span><h2 style="font-size:16px">${cands.length ? `${cands.length} 条候选待核对` : '暂无候选'}</h2></div>${pill('待核对·原文引用', 'amber')}</div>
+    <p class="small-note" style="margin:6px 0 0">每条都带原文与出处；确认才进正式数据，拒收零副作用。化验 → 血象趋势；诊断 → 「诊断与基因」；治疗 → 42 天诱导日历（确认时填 D1 起始日期）。</p>
+  </div>
+  ${obGroups(cands) || ''}`;
+  return `${head(`三步开始 · ${profile().name}`, '上传确诊材料 → 自动解析 → 核对确认。每条候选都是原文引用，核对通过才进正式数据。', '', '三步开始')}
+  ${step1}
+  ${step2}
+  ${step3}
+  <div class="actions" style="margin-top:12px">${go('去整理草稿与核对 →', 'docs', 'docs-cand', 'soft', 'data-step="to-docs-cand2"')}${go('回到看板', 'dash', '', 'linkish')}</div>`;
+}
+/* 初始化完成但还没有叙述层（本机新档案没有 presentation）：看板收起为小卡 + 已确认事实摘要。 */
+function pageOnboardDone() {
+  const p = profile();
+  const cands = state.ob.cands;
+  const dxQuote = p.dx?.subtype?.who || null;
+  const cycles = p.tx?.cycles || [];
+  const daily = p.tx?.calendar?.daily || [];
+  const pendingRows = cands.length ? obGroups(cands) : '';
+  return `${head(`看板 · ${p.name}`, '初始化已完成：诊断与治疗原文都已入档案。继续记体温、看日历，或随时加新材料。', aiBtn('dash'), '看板')}
+  <div class="card" style="margin-bottom:12px;border-left:4px solid var(--act)">
+    <div class="card-head"><div><span class="eyebrow">初始化完成</span><h2 style="font-size:16px">已完成初始化，去看 诊断与基因 / 诱导日历</h2></div>${pill('三步完成', 'green')}</div>
+    <div class="kv" style="margin-top:8px">
+      <em>诊断原文</em><span>${esc(dxQuote || '（尚未确认诊断候选）')}</span>
+      <em>诱导</em><span>${cycles.length ? `${esc(cycles[0].kind || '诱导 1')} · D1 ${esc(cycles[0].start || '—')} · 日历 ${daily.length} 天` : '（尚未确认治疗候选）'}</span>
+    </div>
+    <div class="actions" style="margin-top:10px">${go('看诊断与基因 →', 'dx', 'dx-gene', 'primary', 'data-step="to-dx-gene2"')}${go('看诱导日历 →', 'tx', 'tx-cal', 'org', 'data-step="to-tx-cal2"')}${go('记体温（粒缺发热轨道） →', 'neu', 'neu-fever', 'soft', 'data-step="to-neu-fever3"')}${cands.length ? go('继续核对剩余候选 →', 'docs', 'docs-cand', 'soft', 'data-step="to-docs-cand3"') : ''}</div>
+  </div>
+  ${pendingRows ? `<div class="section-title"><div><h2>还有 ${cands.length} 条候选待核对</h2><p>核对通过才进正式数据。</p></div></div>${pendingRows}` : ''}
+  <div class="actions" style="margin-top:12px">${go('去资料库与导入 →', 'docs', 'docs-lib', 'soft', 'data-step="to-docs-lib3"')}${go('回到看板', 'dash', '', 'linkish')}</div>`;
+}
+
 function pageDash() {
+  if (DATA_SOURCE === 'empty') return pageOnboardEmpty();
+  if (!onboardDone()) return pageOnboard();
+  if (!profile().dash) return pageOnboardDone();
   const p = profile(); const d = p.dash;
   const all = allViewpoints();
   /* 「今天能做的一件事」= 动作，不是页签名。
@@ -1015,6 +1211,14 @@ function pageDocsLib() {
 }
 function pageDocsCand() {
   const p = profile();
+  /* 0.6.0：api 形态渲染真候选（GET /candidates 过滤本档案，按 kind 分组；与三步向导第 3 步同一份组件）。
+     demo 形态保持现状（演示候选卡，不写库）。 */
+  if (DATA_SOURCE === 'api') {
+    const cands = state.ob.cands;
+    return `${head('整理草稿与核对', '候选逐项 accept 前不进正式数据：核对通过 / 修改 / 拒收零副作用——闭环三步（X4）。候选一律「待核对·原文引用」。', aiBtn('docs'), '整理草稿与核对')}
+    ${cands.length ? obGroups(cands) : '<div class="empty"><h3>暂无候选</h3><p>从看板「三步开始」或「资料库与导入」上传材料，解析后候选会出现在这里。</p></div>'}
+    <div class="actions">${go('去三步初始化 →', 'dash', '', 'soft', 'data-step="to-onboard"')}${go('看资料库 →', 'docs', 'docs-lib', 'soft', 'data-step="to-docs-lib2"')}${go('看就诊准备 →', 'docs', 'docs-prep', 'soft', 'data-step="to-docs-prep"')}${go('回到看板', 'dash', '', 'linkish')}</div>`;
+  }
   const cands = (p.docs.candidates || []).map((c) => `<div class="cand-card" style="margin-bottom:12px">
     <div class="card-head"><h3 style="font-size:15px">${esc(c.title)}</h3>${pill('候选 · 未入事实层', 'amber')}</div>
     <div class="kv">${c.fields.map(([k, v]) => `<em>${esc(k)}</em><span>${esc(v)}</span>`).join('')}</div>
@@ -1492,7 +1696,9 @@ const ROUTES = {
 function render() {
   const main = $('#main');
   const route = SUBPAGES[state.page] ? `${state.page}/${state.sub[state.page] || SUBPAGES[state.page][0][0]}` : state.page;
-  const fn = ROUTES[route] || pageDash;
+  /* 0.6.0：还没有档案时空态只允许落在向导页——其它页在没档案时没有可渲染的数据。 */
+  let fn = ROUTES[route] || pageDash;
+  if (DATA_SOURCE === 'empty' && route !== 'dash') fn = pageOnboardEmpty;
   const label = (() => { const pg = PAGES.find((x) => x[0] === state.page); const sub = (SUBPAGES[state.page] || []).find((x) => x[0] === state.sub[state.page]); return sub ? `${pg[1]} · ${sub[1]}` : pg ? pg[1] : '看板'; })();
   $('#breadcrumb').textContent = label;
   main.innerHTML = fn();
@@ -1504,10 +1710,18 @@ function render() {
     return `<button class="nav-button" aria-current="${cur ? 'page' : 'false'}" data-action="go" data-page="${id}" aria-expanded="${cur && subs ? 'true' : 'false'}">${icon(ic)}<span>${label2}</span></button>${cur && subs ? `<div class="nav-subs">${subs.map(([sid, slab]) => `<button class="sub-button" aria-current="${state.sub[id] === sid ? 'true' : 'false'}" data-action="go" data-page="${id}" data-sub="${sid}">${slab}</button>`).join('')}</div>` : ''}`;
   }).join('');
   const p = profile();
-  $('#profile-name').textContent = `${p.name.replace('（演示）', '')}的资料`;
-  $('#profile-avatar').textContent = p.name[0];
-  $('#profile-meta').textContent = `${p.age} 岁 · ${p.diagnosisShort}`;
-  $('#profile-btn').setAttribute('aria-label', `切换演示档案，当前为${p.name.replace('（演示）', '')}`);
+  /* 0.6.0：空 workspace（还没有档案）时侧栏档案位显示建档指引，不做演示档案的填充。 */
+  if (p) {
+    $('#profile-name').textContent = `${String(p.name).replace('（演示）', '')}的资料`;
+    $('#profile-avatar').textContent = p.name[0];
+    $('#profile-meta').textContent = [p.age != null ? `${p.age} 岁` : '', p.diagnosisShort || ''].filter(Boolean).join(' · ') || '完成三步初始化后显示概要';
+    $('#profile-btn').setAttribute('aria-label', `切换演示档案，当前为${String(p.name).replace('（演示）', '')}`);
+  } else {
+    $('#profile-name').textContent = '还没有档案';
+    $('#profile-avatar').textContent = '？';
+    $('#profile-meta').textContent = '从「三步开始」建档';
+    $('#profile-btn').setAttribute('aria-label', '还没有档案，先在看板建档');
+  }
 }
 function navigate(page, sub) {
   if (!PAGES.some((x) => x[0] === page)) page = 'dash';
@@ -1587,11 +1801,68 @@ document.addEventListener('click', (e) => {
   if (a === 'cand-ok') { toast('演示：核对通过后进入事实层（原型仅示意，不写库）', { long: true }); return; }
   if (a === 'cand-fix') { toast('演示：进入逐项修改（每项都可以改）'); return; }
   if (a === 'cand-reject') { toast('已拒收这条候选（无副作用）'); return; }
+  /* ---- 0.6.0 三步初始化：建档 / 上传 / 候选确认（api 形态真写库） ---- */
+  if (a === 'ob-create') {
+    const name = $('#ob-name')?.value?.trim() || '';
+    const ageRaw = $('#ob-age')?.value?.trim() || '';
+    const gender = $('#ob-gender')?.value?.trim() || '';
+    const caregiver = $('#ob-caregiver')?.value?.trim() || '';
+    if (!name) { toast('先写患者姓名再建档'); return; }
+    el.disabled = true;
+    void obPostJson('/profiles', { name, age: ageRaw === '' ? null : Number(ageRaw), gender: gender || null, caregiver: caregiver || null })
+      .then(() => { toast('已建档，继续第 1 步：上传确诊材料', { long: true }); return apiRefetch(); })
+      .catch((e) => { toast('没建成：' + e.message, { long: true }); el.disabled = false; });
+    return;
+  }
+  if (a === 'ob-pick') { $('#ob-file')?.click(); return; }
+  if (a === 'ob-retry') {
+    const hit = state.ob.uploads.find((u) => u.name === el.dataset.name && u.file);
+    if (!hit) { toast('找不到原件：请在第 1 步重新选择该文件'); return; }
+    void obUploadFiles([hit.file]);
+    return;
+  }
+  if (a === 'ob-accept') {
+    const id = el.dataset.cand;
+    if (el.dataset.kind === 'treatment') {
+      const cand = state.ob.cands.find((c) => c.id === id);
+      openModal('确认诱导方案 · 填 D1 起始日期',
+        `<div class="ob-quote">「${esc(cand?.quote || '')}」</div>
+        <div class="form-grid" style="margin-top:10px">
+          <div><label class="form-label" for="ob-d1">D1 起始日期（第一天化疗的日子）</label><input id="ob-d1" type="date" value="${esc(cand?.plan?.start_date || TODAY)}"></div>
+        </div>
+        <p class="small-note" style="margin-top:8px">生成按天日历只是把方案铺到 D1–42，用药与调整以医嘱为准。</p>`,
+        `<button class="primary" id="ob-d1-ok">确认并生成 42 天日历</button><button data-action="close">取消</button>`, '三步初始化 · 第 3 步核对确认');
+      $('#ob-d1-ok').addEventListener('click', () => {
+        const d1 = $('#ob-d1')?.value;
+        if (!d1) { toast('先填 D1 起始日期（YYYY-MM-DD）'); return; }
+        closeModal();
+        void obAccept(id, { d1 });
+      });
+      return;
+    }
+    void obAccept(id, {});
+    return;
+  }
+  if (a === 'ob-reject') { void obReject(el.dataset.cand); return; }
   /* 临床试验收藏（35 号 §一第 4 段）：dev 落 saved_trial 表，原型记内存 */
   if (a === 'trial-save') { toggleSaveTrial(el.dataset.key); return; }
   if (a === 'export-shared') { showExport(false); return; }
   if (a === 'export-full') { showExport(true); return; }
   /* 表单类（每页显式编辑入口 ≤1；每表单 ≤6 字段） */
+  if (a === 'ob-new-profile') {
+    const nameEl = $('#ob-name');
+    closeModal();
+    void (async () => {
+      try {
+        const j = await obPostJson('/profiles', { name: nameEl?.value?.trim() || '我的档案', newProfile: true });
+        state.profileId = j.profileId;
+        DATA_SOURCE = await loadBootstrap();
+        render();
+        toast('已新建空档案：从第 1 步上传确诊材料开始', { long: true });
+      } catch (e) { toast('没建成：' + e.message, { long: true }); }
+    })();
+    return;
+  }
   if (a === 'day-open') {
     const day = Number(el.dataset.day);
     const cal = profile().tx.calendar;
@@ -1776,6 +2047,13 @@ document.addEventListener('change', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const a = el.dataset.action;
+  /* 0.6.0 三步初始化：选完文件逐个上传（PDF/JPG/PNG；照片直接传）。 */
+  if (a === 'ob-files') {
+    const files = [...(el.files || [])];
+    el.value = '';
+    if (files.length) void obUploadFiles(files);
+    return;
+  }
   /* 临床研究检索条件：改条件 → 重新取数（dev 走服务端参数，原型本地过滤） */
   if (a === 'trial-q') { state.trial.filter.q = el.value || ''; state.trial.loaded = false; ensureTrials(); render(); return; }
   if (a === 'trial-status') { state.trial.filter.status = el.value; state.trial.loaded = false; ensureTrials(); render(); return; }
@@ -1789,9 +2067,12 @@ document.addEventListener('change', (e) => {
 function openProfiles() {
   const rows = DATA.profiles.map((p) => `<button class="prof-item" data-action="pick-profile" data-id="${p.id}" aria-pressed="${p.id === state.profileId}">
     <div class="avatar" aria-hidden="true">${p.name[0]}</div>
-    <div style="min-width:0"><b>${esc(p.name)} · ${p.age}岁${p.gender}</b><span>${esc(p.diagnosisShort)} · ${esc(p.stageLine)}</span><span>照护者：${esc(p.caregiver || '—')}</span></div>
+    <div style="min-width:0"><b>${esc(p.name)}${p.age != null ? ` · ${p.age}岁` : ''}${p.gender ? esc(p.gender) : ''}</b><span>${esc(p.diagnosisShort || '概要待初始化')} · ${esc(p.stageLine || '—')}</span><span>照护者：${esc(p.caregiver || '—')}</span></div>
   </button>`).join('');
-  openModal('切换演示档案', `<div class="prof-list">${rows}</div><p class="small-note" style="margin-top:8px">两档案均为合成演示数据；切换后各页数据独立。</p>`);
+  const canCreate = DATA_SOURCE === 'api';
+  openModal('切换档案', `<div class="prof-list">${rows}</div>
+    ${canCreate ? `<div class="actions" style="margin-top:10px">${btn('＋ 新建我的档案（从零开始）', 'ob-new-profile', 'soft', 'data-step="ob-new-profile"')}<span class="small-note">建立一份空档案，走「三步开始」：建档 → 上传确诊材料 → 核对确认。</span></div>` : ''}
+    <p class="small-note" style="margin-top:8px">${DATA_SOURCE === 'api' ? '档案来自你选的本机资料目录；切换后各页数据独立。' : '两档案均为合成演示数据；切换后各页数据独立。'}</p>`);
 }
 
 /* ---------------- 分隔条拖动 / 键盘 ---------------- */

@@ -410,3 +410,9 @@ dialog#dialog::backdrop { background: rgba(58, 50, 41, .35); }
 .dg-cell:not(.grey) { cursor: pointer; }
 .dg-cell:not(.grey):hover { outline: 2px dashed var(--act); outline-offset: -2px; }
 .dg-cell:not(.grey):focus-visible { outline: 3px solid var(--act-ink); }
+
+/* ---------- 0.6.0 三步初始化向导（零治疗建档闭环） ---------- */
+.ob-step { border-left: 3px solid var(--org-soft); }
+.ob-step.is-dim { opacity: 0.62; border-left-color: var(--line); }
+.ob-quote { font-size: 14px; line-height: 1.7; background: var(--amber-faint, var(--grey-soft)); border: 1px solid var(--line2); border-radius: 10px; padding: 10px 12px; margin: 8px 0 0; }
+.ob-cand .card-head span { display: inline-flex; gap: 6px; align-items: center; }

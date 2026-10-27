@@ -104,10 +104,13 @@ export function readFerritin(db, key) {
 function readDx(db, key, pres) {
   const rec = db.prepare('SELECT * FROM diagnosis_record WHERE profile_id = ? ORDER BY ord, rowid LIMIT 1').get(key) ?? null
   const sp = obj(pres.dx).subtype
-  const subtype = sp
+  /* 0.6.0：三步闭环确认的 diagnosis_record（本机新档案没有叙述层 pres.dx.subtype）也要出
+     subtype——who 仍优先取 rec.subtype_text（原文），表达式与演示档案一致，只是
+     「有 rec 也能成卡」。 */
+  const subtype = (sp || rec)
     ? {
-        who: rec?.subtype_text ?? sp.who ?? null,
-        eln: rec?.risk_text ?? sp.eln ?? null,
+        who: rec?.subtype_text ?? sp?.who ?? null,
+        eln: rec?.risk_text ?? sp?.eln ?? null,
         ...(hasOwn(sp, 'riskBasis') ? { riskBasis: sp.riskBasis } : {}),
         ...(hasOwn(sp, 'note') ? { note: sp.note } : {}),
       }
@@ -360,6 +363,8 @@ function readTp(db, key, pres) {
     statusFlow: tp.statusFlow ?? [],
     statusNote: tp.statusNote ?? null,
     evalItems: jp(ev?.items_text, []) ?? [],
+    /* 0.6.0：还没有供者记录的档案（三步初始化后的新档案）给空形状而非 null——
+       页面按"暂无记录"渲染（type/rel/hla 为 null → 显示 —），不造任何供者事实。 */
     donor: donor
       ? {
           type: donor.donor_type,
@@ -368,7 +373,9 @@ function readTp(db, key, pres) {
           note: donor.search_note,
           ...(tp.donorOtherTypes === undefined || tp.donorOtherTypes === null ? {} : { otherTypes: tp.donorOtherTypes }),
         }
-      : null,
+      /* 0.6.0：还没有供者记录的档案（三步初始化后的新档案）给空形状而非 null——
+         页面按"暂无记录"渲染（type/rel/hla 为 null → 显示 —），不造任何供者事实。 */
+      : { type: null, rel: null, hla: null, note: null },
     doctorReply: ev?.doctor_reply ?? null,
     dayAxis: tp.dayAxis ?? { mode: 'pending', day0: null, milestones: [], note: null },
     gvhd,
@@ -422,15 +429,48 @@ function readDocs(db, key, pres, pendingCandidates) {
   const saved = new Set(rows(db, 'SELECT trial_key FROM saved_trial WHERE profile_id = ?', key).map((r) => r.trial_key))
   const trials = (dp.trials ?? []).filter((t) => saved.has(`${t.nct ?? 'NCT'}·${t.name ?? ''}`))
 
-  /* 导入产生的候选（不是事实）：与演示候选并列，进入「整理草稿与核对」。 */
+  /* 导入产生的候选（不是事实）：与演示候选并列，进入「整理草稿与核对」。
+     0.6.0 起候选有三类（化验 / 诊断 / 治疗），诊断与治疗带原文 quote，逐字段如实带出。 */
   const imported = pendingCandidates
     .filter((c) => c.profileId === key)
-    .map((c) => ({
-      id: c.id,
-      title: `解析候选 · ${c.field}（待核对）`,
-      fields: [['字段', c.field], ['值', `${c.value}${c.unit ? ` ${c.unit}` : ''}`], ['出处', c.src]],
-      src: c.src,
-    }))
+    .map((c) => {
+      if (c.kind === 'diagnosis') {
+        return {
+          id: c.id,
+          kind: 'diagnosis',
+          title: `解析候选 · ${c.field}（待核对）`,
+          fields: [['字段', c.field], ['原文', c.quote ?? ''], ['出处', c.src]],
+          quote: c.quote ?? '',
+          src: c.src,
+        }
+      }
+      if (c.kind === 'treatment') {
+        const plan = c.plan && typeof c.plan === 'object' ? c.plan : {}
+        return {
+          id: c.id,
+          kind: 'treatment',
+          title: `解析候选 · ${c.field}（待核对）`,
+          fields: [
+            ['字段', c.field],
+            ['原文', c.quote ?? ''],
+            ['方案名', plan.name ?? ''],
+            ['药物清单', Array.isArray(plan.drugs) ? plan.drugs.join(' / ') : ''],
+            ['开始日期', plan.start_date ?? '（原文未见，确认时补录 D1）'],
+            ['出处', c.src],
+          ],
+          quote: c.quote ?? '',
+          plan,
+          src: c.src,
+        }
+      }
+      return {
+        id: c.id,
+        kind: 'metric',
+        title: `解析候选 · ${c.field}（待核对）`,
+        fields: [['字段', c.field], ['值', `${c.value}${c.unit ? ` ${c.unit}` : ''}`], ['出处', c.src]],
+        src: c.src,
+      }
+    })
 
   return {
     materials,
@@ -470,7 +510,9 @@ export function getProfile(db, key, { includePrivate = false } = {}) {
     neu: readFeverTrack(db, key, pres, { includePrivate }),
     mrd: readMrd(db, key, pres),
     tp: readTp(db, key, pres),
-    care: pres.care ?? null,
+    /* 0.6.0：三步初始化后的新档案还没有叙述层（pres.care 不存在）——给空集合形状，
+       页面按"暂无记录"渲染；不造任何食量/食物安全事实。 */
+    care: pres.care ?? { meals: [], safe: [], inout: [], weightNote: null },
     mind: mind.mind,
     docs: readDocs(db, key, pres, state.pendingCandidates),
     metrics: { numeric: readMetricSeries(db, key) },
@@ -484,7 +526,8 @@ export function listProfiles(db) {
   return rows(db, 'SELECT id, name FROM profile ORDER BY rowid')
 }
 
-/** `/api/aml/bootstrap` 的 payload：与原型 DEMO_DATA 同形（meta + profiles 数组），外加版本与布局。 */
+/** `/api/aml/bootstrap` 的 payload：与原型 DEMO_DATA 同形（meta + profiles 数组），外加版本与布局。
+ *  0.6.0：profiles 为空时带 needsOnboarding:true——前端据此显示「三步开始」向导而不是空态横幅。 */
 export function bootstrap(db, { version, build } = {}) {
   const { meta } = readWorkspaceState(db)
   const profiles = listProfiles(db).map((s) => getProfile(db, s.id))
@@ -493,6 +536,7 @@ export function bootstrap(db, { version, build } = {}) {
     build: build ?? null,
     meta,
     profiles,
+    needsOnboarding: profiles.length === 0,
     agent: { available: true, mode: 'dev-mount' },
     layout: { agentPane: AGENT_PANE },
   }
