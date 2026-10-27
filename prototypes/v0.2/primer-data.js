@@ -47,7 +47,7 @@ window.DISEASE_PRIMER = {
           ['NCCN', 'NCCN Clinical Practice Guidelines in Oncology: AML', '3.2026（2025-11-24 发布，取代 2.2026）', { text: '未取得原件（正文需注册下载）', url: 'https://www.nccn.org/guidelines/category_1' }, '仅在范围声明中写「参照 NCCN AML 3.2026」，不引条文'],
           ['CSCO', 'CSCO 恶性血液病诊疗指南 2025', '2025-04（发布报道）', { text: '未取得原件，据会议报道', url: 'https://www.csco.org.cn/cn/ncontent.aspx?oid=2379' }, '仅记录「2024/2025 有更新」这一事实'],
           ['ELN', 'AML MRD 更新', '2021', { text: '已取得（开放获取）', url: 'https://ashpublications.org/blood/article/138/26/2753/477736/2021-Update-on-MRD-in-acute-myeloid-leukemia-a' }, '0.01% / 0.1% 阈值语境的原始出处之一'],
-          ['中国专家共识', '造血干细胞移植临床实践整体评估中国专家共识（2025 年版）', '2025', { text: '未取得原件，据平台转介', url: 'https://www.ihemato.com/Detail?id=1191' }, '仅列「有这份共识」，移植适应语境不引条文']
+          ['中国专家共识', '造血干细胞移植临床实践整体评估中国专家共识（2025 年版）', '2025', { text: '未取得原件，据平台转介', url: 'https://guide.medlive.cn/guideline/35622' }, '仅列「有这份共识」，移植适应语境不引条文']
         ]
       },
       sources: [
@@ -105,7 +105,7 @@ window.DISEASE_PRIMER = {
         { org: '中华医学会血液学分会', doc: '中国成人 AML（非APL）指南（2021 年版）', version: '2021', original: true, url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC8501285', page: '全文可读' },
         { org: 'ELN', doc: 'AML 成人诊断与治疗建议（2022）', version: '2022', original: true, url: 'https://ashpublications.org/blood/article/140/12/1345/485817/Diagnosis-and-management-of-AML-in-adults-2022', page: '官方页（开放获取）' },
         { org: '国家医疗保障局', doc: '维奈克拉片医保申报材料', version: '2022 申报', original: false, secondaryUrl: 'https://www.nhsa.gov.cn/col/col104/index.html', page: '载明首次上市 2020-12', note: '申报材料非公开文件；本行只记「医保局收到申报」这一事实，批件号未核实' },
-        { org: 'NCCN', doc: 'NCCN AML 3.2026', version: '2025-11-24', original: false, page: '页码待核', note: '仅用作范围声明，不引条文' , secondaryUrl: 'https://www.nccn.org/updates'}
+        { org: 'NCCN', doc: 'NCCN AML 3.2026', version: '2025-11-24', original: false, page: '页码待核', note: '仅用作范围声明，不引条文' , secondaryUrl: 'https://www.nccn.org/guidelines/category_1'}
       ]
     },
     {
@@ -121,7 +121,7 @@ window.DISEASE_PRIMER = {
         '分类体系：本台按 WHO 2022 与 ICC 两套体系并记，不换算；项目资料未见更新的分类版本记载。'
       ],
       sources: [
-        { org: 'NCCN', doc: 'NCCN Guidelines: AML', version: '3.2026（2025-11-24）', original: false, page: '页码待核', note: '仅元信息' , secondaryUrl: 'https://www.nccn.org/updates'},
+        { org: 'NCCN', doc: 'NCCN Guidelines: AML', version: '3.2026（2025-11-24）', original: false, page: '页码待核', note: '仅元信息' , secondaryUrl: 'https://www.nccn.org/guidelines/category_1'},
         { org: 'CSCO', doc: 'CSCO 恶性血液病诊疗指南 2025（发布报道）', version: '2025-04', original: false, page: '不适用', note: '据会议报道，正文未取得' , secondaryUrl: 'https://www.csco.org.cn/cn/ncontent.aspx?oid=2379'},
         { org: '本项目登记快照', doc: 'research/aml-cancer/manifest.json（unified-trial-mcp）', version: '2026-10-26', original: false, nolink: true, page: '不适用', note: '本仓内文件（无公网链接，见 research/ 目录）：241 条去重；ChiCTR/ICTRP 采集失败如实记录' },
         { org: '国家医疗保障局', doc: '维奈克拉片医保申报材料', version: '2022 申报', original: false, secondaryUrl: 'https://www.nhsa.gov.cn/col/col104/index.html', page: '不适用', note: '同上：申报材料非公开文件，只记事实' }

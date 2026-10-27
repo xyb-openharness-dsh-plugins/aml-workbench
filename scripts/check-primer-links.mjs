@@ -111,6 +111,55 @@ for (const sec of primer.sections || []) {
   }
 }
 
+/* L7：同一机构的链接必须落在同一站点。
+   三次迭代才想清楚这条该怎么写，记下来避免以后再走：
+   ① 最初 key = org + version：version 在各段写法不一致（"2022" vs "2022（官方 PDF）"），
+      同一文件落到不同 key，永远查不出问题（变异测试没抓到才发现）；
+   ② 改成 key = org：立刻误报——ELN 确实有两份不同文件（2022 主指南 + 2021 MRD 更新），
+      本来就该是两个链接；
+   ③ 再改成 key = org + 文件主干：仍然不行——同一份 NCCN 指南在三段的 doc 写法是
+      "NCCN Clinical Practice Guidelines in Oncology: AML" / "NCCN AML 3.2026" /
+      "NCCN Guidelines: AML"，归一化后还是三个 key。
+
+   结论：**不能用"文件身份"做 key**，因为同一文件在不同段落的描述天然不同。
+   改用能真正判错的口径——同一机构的所有链接必须落在同一个注册域。
+   这抓不到"同一站点内的两个不同页面"，但那属于内容问题，需要人点开核对；
+   能抓到的"nccn.org 与 nccn.org/updates 之外的站"这类跨站混用，才是机器能判的。
+   实测价值：AML 曾在同一机构下混用 nccn.org 与 csco.ac.cn（后者 DNS 都不通）。 */
+const siteOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, '') } catch { return null } }
+const byOrg = new Map()
+for (const sec of primer.sections || []) {
+  const addOrg = (org, u) => {
+    if (!org || !u) return
+    const site = siteOf(u)
+    if (!site) return
+    const key = String(org).slice(0, 24)
+    if (!byOrg.has(key)) byOrg.set(key, new Set())
+    byOrg.get(key).add(site)
+  }
+  for (const s of sec.sources || []) {
+    if (s.nolink) continue
+    addOrg(s.org, s.url || s.secondaryUrl)
+  }
+  const t = sec.table
+  if (t && Array.isArray(t.rows)) {
+    const ci = (t.head || []).findIndex((h) => String(h).includes('原件'))
+    if (ci >= 0) for (const row of t.rows) {
+      const cell = row[ci]
+      if (cell && typeof cell === 'object' && cell.url) addOrg(row[0], cell.url)
+    }
+  }
+}
+let crossSite = 0
+for (const [org, sites] of byOrg) {
+  if (sites.size > 1) {
+    crossSite++
+    fails.push(`L7 机构「${org}」的链接跨了 ${sites.size} 个站点：${[...sites].join(' / ')}`
+      + '——同一机构的来源应落在同一官方站点，跨站通常意味着有一条指错了')
+  }
+}
+if (!crossSite) oks.push(`L7 ${byOrg.size} 个机构的链接各自落在单一站点`)
+
 /* 汇总：至少检查到一定数量，防止"结构变了导致一条都没查"的假通过 */
 if (checked < 10) fails.push(`只检查到 ${checked} 个链接位（预期 ≥10）——结构可能变了，本断言已失效`)
 
@@ -120,4 +169,4 @@ if (fails.length) {
   console.error(`  （通过 ${oks.length} 条）`)
   process.exit(1)
 }
-console.log(`✓ 疾病概要链接完整：${oks.length} 条通过（L1 原件 / L2 二次来源 / L3 表格原件列 / L4 nolink 说明 / L5 仅 https / L6 非域名首页）`)
+console.log(`✓ 疾病概要链接完整：${oks.length} 条通过（L1 原件 / L2 二次来源 / L3 表格原件列 / L4 nolink 说明 / L5 仅 https / L6 非域名首页 / L7 同机构不跨站）`)
