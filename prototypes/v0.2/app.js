@@ -667,10 +667,27 @@ function pageDash() {
   const scenes = SCENES.map(([sid, label, pg, sb]) => go(`${sid} ${label}`, pg, sb, '', `data-scene="${sid}"`)).join('');
   return `${head(`看板 · ${p.name}`, p.stageLine, aiBtn('dash'), '看板')}
   <div class="hero" style="margin-bottom:12px">
-    <div class="card dn-card"><span class="eyebrow">D+N 状态卡 · ${esc(d.anchorLabel)}</span><div class="big">第 ${d.anchorDays} 天</div>
+    ${(() => {
+      /* 36 号 §2.6 状态卡四件：卡头 eyebrow / 大字天数（锚点派生）/ 现状行（阶段+状态+下次）/ 出口按钮排。
+         无锚点数据时整卡显示「待初始化」并指向初始化向导，不手填一个假的天数——
+         手填的天数一旦和真实锚点不符，患者会按错的时间点去做骨穿。 */
+      /* 判据只能用 anchorDays：演示/读模型只提供预计算好的天数，没有单独的 anchor 日期字段。
+         第一版写成 `d.anchor && Number.isFinite(d.anchorDays)`，于是有天数也被判成"待初始化"
+         —— 一个不存在的字段把整卡降级了，这类"条件里引用不存在字段"的错很难在截图上发现，
+         因为两种分支都能正常渲染。 */
+      const hasAnchor = Number.isFinite(Number(d.anchorDays)) && Number(d.anchorDays) > 0;
+      if (!hasAnchor) {
+        return `<div class="card dn-card"><span class="eyebrow">D+N 状态卡 · 待初始化</span>
+          <div class="big" style="font-size:22px">待初始化</div>
+          <p style="margin:6px 0 0;font-size:14px">还没有可用的锚点日（诱导 D1 / 移植 Day 0）。三步初始化后这里会显示「第 N 天」。</p>
+          <p class="small-note" style="margin-top:6px">天数一律由锚点日计算派生，不手填。</p>
+          <div class="actions" style="margin-top:10px">${go('去初始化（三步）→', 'docs', 'docs-lib', 'org', 'data-step="to-onboard"')}${btn('疾病概要：AML 是什么 ?', 'primer', 'soft')}</div></div>`;
+      }
+      return `<div class="card dn-card"><span class="eyebrow">D+N 状态卡 · ${esc(d.anchorLabel)}</span><div class="big">第 ${d.anchorDays} 天</div>
       <p style="margin:6px 0 0;font-size:14px">${esc(d.stage)}</p>
       <p class="small-note" style="margin-top:6px">下次：${esc(d.nextVisit)}</p>
-      <div class="actions" style="margin-top:10px">${go('看诱导日历（按天）→', 'tx', 'tx-cal', 'org', 'data-step="to-tx-cal"')}${btn('疾病概要：AML 是什么 ?', 'primer', 'soft')}</div></div>
+      <div class="actions" style="margin-top:10px">${go('看诱导日历（按天）→', 'tx', 'tx-cal', 'org', 'data-step="to-tx-cal"')}${btn('疾病概要：AML 是什么 ?', 'primer', 'soft')}</div></div>`;
+    })()}
     <div class="card ${d.neutropenic ? 'fever-mode' : ''}"><span class="eyebrow">粒缺期模式卡（ANC&lt;0.5 自动出现）</span>
       ${d.neutropenic ? '<h3 style="margin:6px 0">当前处于粒缺期</h3><p style="font-size:13.5px;margin:0 0 8px">最近 ANC ' + esc(String(d.lastANC.v)) + '×10⁹/L（' + esc(d.lastANC.d) + '）。' + esc(DATA.meta.feverAlert) + '</p><div class="actions">' + go('去粒缺发热轨道 →', 'neu', 'neu-fever', 'primary', 'data-step="to-fever-dash"') + '</div>' : `<h3 style="margin:6px 0;font-size:15.5px">当前不在粒缺期</h3><p style="font-size:13.5px;margin:0 0 8px">${esc(d.modeNote || '')}</p><div class="actions">${go('看血象趋势 →', 'neu', 'neu-cbc', 'soft', 'data-step="to-cbc-dash"')}</div>`}
       <p class="small-note" style="margin-top:8px">照护者：${esc(p.caregiver || '—')}（代记为主，体温/用药记录自动标注记录人）</p></div>
