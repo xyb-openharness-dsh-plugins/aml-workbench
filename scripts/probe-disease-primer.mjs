@@ -98,8 +98,30 @@ async function main() {
   try {
     const page = await browser.newPage()
     const errors = []
+    /* 原型态必然拿不到的后端接口：这些请求在静态服务器上一定 404，
+       但它们不是「页面坏了」，而是「没有后端」。把它们算进 E0 会让
+       开发版（0.4.0 起接了 /bootstrap）永远红，掩盖真正的 JS 错误。
+       2026-10-27 AML 实测：E0 唯一失败项就是 /bootstrap 404。
+
+       注意：Chrome 给资源加载失败的 console 文本是固定文案
+       「Failed to load resource: the server responded with a status of 404」，
+       **不含 URL**，所以按文本匹配路径无效。必须用 response 事件记录 URL，
+       再把「该 URL 属于后端接口」的失败从 console 错误里减掉。 */
+    const BACKEND_PATHS = [/\/bootstrap\b/, /\/health\b/, /\/api\//]
+    const backendMissUrls = []
+    const loadFailLines = []   /* 「Failed to load resource」类 console 行，先存后判 */
+    page.on('response', (r) => {
+      if (r.status() >= 400 && BACKEND_PATHS.some((re) => re.test(r.url()))) backendMissUrls.push(r.url())
+    })
     page.on('pageerror', (e) => errors.push(String(e.message)))
-    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
+    page.on('console', (m) => {
+      if (m.type() !== 'error') return
+      const t = m.text()
+      /* 资源加载失败的行不带 URL，且 console 与 response 事件的先后顺序不保证，
+         所以不能在这里即时判断——先存起来，等页面跑完再按 URL 汇总结算。 */
+      if (/Failed to load resource/i.test(t)) { loadFailLines.push(t); return }
+      errors.push(t)
+    })
     await page.setViewport({ width: 1280, height: 860 })
     await page.goto(base, { waitUntil: 'networkidle0' })
 
@@ -220,8 +242,15 @@ async function main() {
       dataCheck.ok,
       dataCheck.ok ? '' : `缺段=${(dataCheck.missing || []).join(',') || '无'} 禁止词=${(dataCheck.hit || []).join(',') || '无'} 缺来源=${(dataCheck.noSrc || []).join(',') || '无'}`)
 
-    /* ---------- E0 控制台无错误 ---------- */
-    check('E0', '页面无 JS 报错、无 console error', errors.length === 0, errors.slice(0, 3).join(' | '))
+    /* ---------- E0 控制台无错误 ----------
+       结算规则：资源加载失败的行只有在「本次 4xx 全部来自后端接口」时才放过。
+       若有任何非后端 4xx（比如某个 .js/.css 真缺了），全部计入错误——
+       否则「页面缺了脚本」会被误当成「只是没后端」而放过去。 */
+    const nonBackendFail = loadFailLines.length > backendMissUrls.length
+    if (nonBackendFail) errors.push(...loadFailLines.slice(0, 3))
+    const e0detail = errors.slice(0, 3).join(' | ')
+      + (backendMissUrls.length ? `（已忽略 ${backendMissUrls.length} 个后端接口 4xx：${[...new Set(backendMissUrls)].slice(0, 2).join(', ')}）` : '')
+    check('E0', '页面无 JS 报错、无 console error', errors.length === 0, e0detail)
 
     const fails = results.filter((r) => !r.ok)
     console.log(`\n  ${results.length - fails.length}/${results.length} 通过${fails.length ? ` · ${fails.length} 失败` : ''}${SELF_TEST ? '（自测：应至少 3 条 FAIL）' : ''}\n`)
