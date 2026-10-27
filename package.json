@@ -1,6 +1,6 @@
 {
   "name": "@xyb-community/aml-workbench",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "面向急性髓系白血病患者与照护者的本机病程资料、诱导化疗日历、粒缺发热轨道、MRD 趋势、移植评估、输注记录工作台设计项目",
   "private": true,
   "type": "module",
