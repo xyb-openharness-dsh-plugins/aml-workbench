@@ -148,6 +148,14 @@ test('④ Panel 自绘 header + 业务 iframe + 会话 aside + splitter（不是
   assert.equal(splitter.props['aria-valuemax'], 45);
   assert.equal(splitter.props['aria-valuenow'], 35);
   assert.equal(splitter.props.tabIndex, 0, 'splitter 必须可聚焦，键盘才调得了');
+  /* 线条是 1px 绝对定位细线，不占布局宽度；拖动命中靠内部 11px 透明热区 */
+  assert.equal(splitter.props.style.position, 'absolute', '分隔线必须绝对定位，不占布局宽度');
+  assert.equal(splitter.props.style.width, 1, '分隔线视觉宽度必须是 1px');
+  assert.equal(splitter.props.style.right, '35%', '分隔线贴在会话面板边界上');
+  const hit = splitter.children.find((c) => c && c.props && c.props.style && c.props.style.width === 11);
+  assert.ok(hit, '缺少 11px 拖动热区子元素');
+  assert.equal(hit.props.style.left, -5, '热区需左右各溢出 5px');
+  assert.equal(hit.props.style.background, 'transparent');
 });
 
 test('⑤ 34 号链路的两端在同一个仓里对得上：壳层监听 aml:agent-draft 且校验 event.source', () => {
